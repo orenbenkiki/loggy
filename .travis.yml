@@ -15,7 +15,7 @@ matrix:
 env:
 - RUST_TEST_THREADS=1
 
-before_script: |
+before_script:
 - export PATH="$PATH:$HOME/.cargo/bin"
 - which rustfmt || cargo install rustfmt
 
