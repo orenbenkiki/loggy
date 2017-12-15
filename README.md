@@ -1,4 +1,4 @@
-# loggy [![Build Status](https://api.travis-ci.org/orenbenkiki/loggy.svg?branch=master)](https://travis-ci.org/orenbenkiki/loggy)
+# loggy [![Build Status](https://api.travis-ci.org/orenbenkiki/loggy.svg?branch=master)](https://travis-ci.org/orenbenkiki/loggy) [![codecov](https://codecov.io/gh/orenbenkiki/loggy/branch/master/graph/badge.svg)](https://codecov.io/gh/orenbenkiki/loggy)
 
 An opinionated library for developing and testing rust applications that use
 logging.
