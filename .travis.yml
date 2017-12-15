@@ -1,0 +1,16 @@
+# Rust project
+language: rust
+cache: cargo
+
+rust:
+- 1.12.0
+matrix:
+  allow-failures:
+  - rust: nightly
+
+# Build & Test
+env:
+- RUST_TEST_THREADS=1
+script:
+- cargo build --verbose
+- cargo test --verbose

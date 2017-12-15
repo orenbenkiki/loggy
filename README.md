@@ -1,3 +1,5 @@
+# loggy [![Build Status](https://api.travis-ci.org/orenbenkiki/loggy.svg?branch=master)](https://travis-ci.org/orenbenkiki/loggy)
+
 An opinionated library for developing and testing rust applications that use
 logging.
 
@@ -9,7 +11,11 @@ applications (as opposed to libraries).
 
 To install, run `cargo install loggy`.
 
-To build and test, run `cargo make`.
+To build run either `cargo build` or `cargo make build`.
+
+To test, run either `RUST_TEST_THREADS=1 cargo test` or `cargo make test`.
+Single thread testing is required due to the rust `log` facade mandating
+the use of a single global logger.
 
 ## Examples
 
@@ -138,9 +144,9 @@ Additional features reflect the library's opinionated nature:
 
 * A `test_loggy!` macro allows creating a test for code that emits log messages.
   All messages (except for debug messages) are captured to a buffer. The test
-  should use `assert_log` to examine this buffer, or or `clear_log` to
-  explicitly discard it. Examining the log is an effective way to gain insights
-  and verify the behavior of the tested code.
+  should use `assert_log` to examine this buffer, or `clear_log` to explicitly
+  discard it. Examining the log is an effective way to gain insights and verify
+  the behavior of the tested code.
 
 * Setting the `LOGGY_MIRROR_TO_STDERR` environment variable to any non-empty
   value will cause all messages to be emitted to the standard error stream,
@@ -148,17 +154,19 @@ Additional features reflect the library's opinionated nature:
   context of the other messages, helping in debugging.
 
   Note that the standard error contents are only reported for failing tests.
-  Well, actually, the mechanism capturing the standard error seems to not work
-  properly when the test spawns new threads, so any debug or mirrored messages
-  emitted from worker threads will be visible even for passing tests. This isn't
-  a show stopper given such messages and the `LOGGY_MIRROR_TO_STDERR` variable
-  are only used when actively debugging an issue.
+  Well, actually, the rust mechanism for capturing the standard error seems to
+  not work properly when the test spawns new threads, so any debug or mirrored
+  messages emitted from worker threads will be visible even for passing tests.
+  This isn't a show stopper given such messages and the `LOGGY_MIRROR_TO_STDERR`
+  variable are only used when actively debugging an issue.
 
-* Since `loggy` handles logging for multiple threads at once (counting errors,
-  capturing messages), it is needed to run `test_loggy!` tests with
-  `RUST_TEST_THREADS=1`. This can be achieved in many ways; the `loggy` package
-  itself uses `cargo make` and sets this environment value in the
-  `Makefile.toml` so that `cargo make test` works (but `cargo test` does not).
+* The rust `log` facade mandates using a single global logger. This, combined
+  with `loggy` handling multiple threads at once (counting errors, capturing
+  messages), means that `test_loggy!` tests must run with `RUST_TEST_THREADS=1
+  cargo test`. This can be automated by providing an `env` section in
+  `Makefile.toml` and running `cargo make test` from the command line, and
+  similarly by providing an `env` section in the `.travis.yml` file (both
+  methods are used by this package).
 
 ## License
 
