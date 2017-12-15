@@ -14,6 +14,10 @@ matrix:
 # Build & Test
 env:
 - RUST_TEST_THREADS=1
+
+before_script: |
+  cargo install rustfmt || true
+
 script:
 - cargo fmt -- --write-mode diff
 - cargo build --verbose
