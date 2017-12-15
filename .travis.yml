@@ -16,7 +16,8 @@ env:
 - RUST_TEST_THREADS=1
 
 before_script: |
-  (which rustfmt && rustfmt --version && [[ "$(rustfmt --version)" =~ "0.2.15" ]]) || travis_wait cargo install --force rustfmt-nightly --vers 0.2.15
+- export PATH="$PATH:$HOME/.cargo/bin"
+- which rustfmt || cargo install rustfmt
 
 script:
 - cargo fmt -- --write-mode diff
