@@ -15,7 +15,12 @@ matrix:
 env:
 - RUST_TEST_THREADS=1
 
+before_script:
+- export PATH="$PATH:$HOME/.cargo/bin"
+- which rustfmt || cargo install rustfmt-nightly
+
 script:
+- cargo fmt -- --write-mode=diff
 - cargo build --verbose
 - cargo test --verbose
 
