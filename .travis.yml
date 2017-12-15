@@ -15,6 +15,7 @@ matrix:
 env:
 - RUST_TEST_THREADS=1
 script:
+- cargo fmt -- --write-mode diff
 - cargo build --verbose
 - cargo test --verbose
 
