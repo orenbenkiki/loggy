@@ -16,7 +16,7 @@ env:
 - RUST_TEST_THREADS=1
 
 before_script: |
-  cargo install rustfmt || true
+  cargo install rustfmt-nightly || true
 
 script:
 - cargo fmt -- --write-mode diff
