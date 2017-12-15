@@ -1,2 +1,5 @@
 [env]
 RUST_TEST_THREADS = "1"
+
+[tasks.coverage]
+alias = "coverage-tarpaulin"
