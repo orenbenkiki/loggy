@@ -14,10 +14,10 @@ env:
 
 before_script:
 - export PATH="$HOME/.cargo/bin:$PATH"
-- which rustfmt
-- rustfmt --version
-- cargo install --force rustfmt-nightly
-- which rustfmt
+- which rustfmt || true
+- rustfmt --version || true
+- cargo install --force rustfmt-nightly || true
+- which rustfmt || true
 - rustfmt --version
 
 script:
