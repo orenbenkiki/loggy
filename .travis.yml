@@ -3,7 +3,7 @@ language: rust
 cache: cargo
 
 rust:
-- 1.21.0
+- 1.22.0
 matrix:
   allow-failures:
   - rust: nightly
