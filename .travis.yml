@@ -4,9 +4,6 @@ cache: cargo
 
 rust:
 - 1.21.0
-- stable
-- beta
-- nightly
 matrix:
   allow-failures:
   - rust: nightly
@@ -16,8 +13,12 @@ env:
 - RUST_TEST_THREADS=1
 
 before_script:
-- export PATH="$PATH:$HOME/.cargo/bin"
-- which rustfmt || cargo install rustfmt-nightly
+- export PATH="$HOME/.cargo/bin:$PATH"
+- which rustfmt
+- rustfmt --version
+- cargo install --force rustfmt-nightly
+- which rustfmt
+- rustfmt --version
 
 script:
 - cargo fmt -- --write-mode=diff
