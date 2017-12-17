@@ -116,17 +116,20 @@ impl Loggy {
         message.push(':');
 
         if self.show_time {
+            // BEGIN NOT TESTED
             message.push(' ');
             message.push_str(
                 time::strftime("%Y-%m-%d %H:%M:%S", &time::now())
                     .unwrap()
                     .as_ref(),
             );
+            // END NOT TESTED
         }
 
         write!(&mut message, " [{}]", record.level().to_string()).unwrap();
 
         if record.level() == LogLevel::Debug {
+            // BEGIN MAYBE TESTED
             write!(
                 &mut message,
                 " {}:{}:",
@@ -134,6 +137,7 @@ impl Loggy {
                 record.location().line()
             ).unwrap();
         } else {
+            // END MAYBE TESTED
             write!(&mut message, " {}:", record.location().module_path()).unwrap();
         }
 
@@ -189,16 +193,18 @@ pub fn assert_log(expected: &str) {
     let mut log_buffer = lock_log_buffer.borrow_mut();
     match *log_buffer {
         None => {
-            panic!("asserting log when logging to stderr");
+            panic!("asserting log when logging to stderr"); // NOT TESTED
         }
         Some(ref mut actual) => {
             if actual != expected {
+                // BEGIN NOT TESTED
                 print!(
                     "ACTUAL LOG:\n{}\nIS DIFFERENT FROM EXPECTED LOG:\n{}\n",
                     actual,
                     expected
                 );
                 assert_eq!("ACTUAL LOG", "EXPECTED LOG");
+                // END NOT TESTED
             }
             actual.clear();
         }
@@ -215,7 +221,7 @@ pub fn clear_log() {
     let mut log_buffer = lock_log_buffer.borrow_mut();
     match *log_buffer {
         None => {
-            panic!("clearing log when logging to stderr");
+            panic!("clearing log when logging to stderr"); // NOT TESTED
         }
         Some(ref mut actual) => {
             actual.clear();
@@ -235,11 +241,11 @@ fn emit_message(log_level: LogLevel, message: &str) {
     let mut log_buffer = lock_log_buffer.borrow_mut();
     match *log_buffer {
         None => {
-            eprint!("{}", message);
+            eprint!("{}", message); // NOT TESTED
         }
         Some(ref mut buffer) => {
             if *MIRROR_TO_STDERR {
-                eprint!("{}", message);
+                eprint!("{}", message); // NOT TESTED
             }
             buffer.push_str(message.as_ref());
         }
@@ -370,7 +376,7 @@ impl ErrorsScope {
         self.errors() > 0
     }
 }
-
+// NOT TESTED
 /// Return the total number of calls to `error!` in the whole program.
 ///
 /// This is reset for each test using the `test_loggy!` macro.

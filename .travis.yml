@@ -15,9 +15,17 @@ matrix:
 env:
 - RUST_TEST_THREADS=1
 
+before_script:
+- which cargo-todox || cargo install cargo-todox # ALLOW TODOX
+- which cargo-tarpaulin || cargo install cargo-tarpaulin
+- which cargo-coverage-annotations || cargo install cargo-coverage-annotations
+
 script:
+- cargo todox # ALLOW TODOX
 - cargo build --verbose
 - cargo test --verbose
+- cargo tarpaulin --out Xml
+- cargo coverage-annotations
 
 # Upload coverage
 after_success:
@@ -27,7 +35,5 @@ after_success:
        && "$TRAVIS_PULL_REQUEST" = "false" \
        && "$TRAVIS_BRANCH" == "master" \
        ]]; then
-      bash <(curl https://raw.githubusercontent.com/xd009642/tarpaulin/master/travis-install.sh)
-      cargo tarpaulin --out Xml
       bash <(curl -s https://codecov.io/bash)
     fi
