@@ -7,9 +7,7 @@ This is inspired by [simple-logging](https://github.com/Ereski/simple-logging)
 implementation, with additional features meant to support development of
 applications (as opposed to libraries).
 
-## Installing and Building
-
-To install, run `cargo install loggy`.
+## Building and Testing
 
 To build run either `cargo build` or `cargo make build`.
 
