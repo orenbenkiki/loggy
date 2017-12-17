@@ -376,7 +376,7 @@ impl ErrorsScope {
         self.errors() > 0
     }
 }
-// NOT TESTED
+
 /// Return the total number of calls to `error!` in the whole program.
 ///
 /// This is reset for each test using the `test_loggy!` macro.

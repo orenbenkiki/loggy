@@ -16,12 +16,10 @@ env:
 - RUST_TEST_THREADS=1
 
 before_script:
-- which cargo-todox || cargo install cargo-todox # ALLOW TODOX
 - which cargo-tarpaulin || cargo install cargo-tarpaulin
 - which cargo-coverage-annotations || cargo install cargo-coverage-annotations
 
 script:
-- cargo todox # ALLOW TODOX
 - cargo build --verbose
 - cargo test --verbose
 - cargo tarpaulin --out Xml
