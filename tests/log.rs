@@ -42,20 +42,15 @@ test: [WARN] log: warning
 
 test_loggy!(worker_threads_should_be_reported, {
     info!("before");
-    let child1 = thread::spawn(|| {
+    let child = thread::spawn(|| {
         info!("child");
     });
-    let child2 = thread::spawn(|| {
-        info!("child");
-    });
-    child1.join().unwrap();
-    child2.join().unwrap();
+    child.join().unwrap();
     info!("after");
     assert_log(
         "\
 test: [INFO] log: before
 test[1]: [INFO] log: child
-test[2]: [INFO] log: child
 test: [INFO] log: after
 ",
     );
