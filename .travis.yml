@@ -1,13 +1,13 @@
 # Rust project
 language: rust
-# TODOX cache: cargo
+cache: cargo
 sudo: required
 
 rust:
-# - 1.22.0
+- 1.22.0
 - stable
-# - beta
-# - nightly
+- beta
+- nightly
 matrix:
   allow-failures:
   - rust: nightly
