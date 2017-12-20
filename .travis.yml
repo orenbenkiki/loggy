@@ -1,4 +1,3 @@
-# Rust project
 language: rust
 cache: cargo
 sudo: required
