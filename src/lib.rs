@@ -195,15 +195,14 @@ pub fn assert_log(expected: &str) {
         }
         Some(ref mut actual) => {
             if actual != expected {
+                // BEGIN NOT TESTED
                 print!(
-                    // BEGIN NOT TESTED
                     "ACTUAL LOG:\n{}\nIS DIFFERENT FROM EXPECTED LOG:\n{}\n",
                     actual,
                     expected
                 );
                 assert_eq!("ACTUAL LOG", "EXPECTED LOG");
-            }
-            // END NOT TESTED
+            } // END NOT TESTED
             actual.clear();
         }
     }
