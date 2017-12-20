@@ -16,13 +16,13 @@ env:
 - RUST_TEST_THREADS=1
 
 before_script:
-- which cargo-tarpaulin || cargo install cargo-tarpaulin
+- which cargo-make || cargo install cargo-make
 - which cargo-coverage-annotations || cargo install cargo-coverage-annotations
 
 script:
 - cargo build --verbose
 - cargo test --verbose
-- cargo tarpaulin --out Xml
+- cargo make coverage
 - cargo coverage-annotations
 
 # Upload coverage

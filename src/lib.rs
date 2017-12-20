@@ -129,7 +129,6 @@ impl Loggy {
         write!(&mut message, " [{}]", record.level().to_string()).unwrap();
 
         if record.level() == LogLevel::Debug {
-            // BEGIN MAYBE TESTED
             write!(
                 &mut message,
                 " {}:{}:",
@@ -137,7 +136,6 @@ impl Loggy {
                 record.location().line()
             ).unwrap();
         } else {
-            // END MAYBE TESTED
             write!(&mut message, " {}:", record.location().module_path()).unwrap();
         }
 
@@ -197,15 +195,15 @@ pub fn assert_log(expected: &str) {
         }
         Some(ref mut actual) => {
             if actual != expected {
-                // BEGIN NOT TESTED
                 print!(
+                    // BEGIN NOT TESTED
                     "ACTUAL LOG:\n{}\nIS DIFFERENT FROM EXPECTED LOG:\n{}\n",
                     actual,
                     expected
                 );
                 assert_eq!("ACTUAL LOG", "EXPECTED LOG");
-                // END NOT TESTED
             }
+            // END NOT TESTED
             actual.clear();
         }
     }
@@ -364,7 +362,7 @@ impl ErrorsScope {
     pub fn errors(&self) -> usize {
         THREAD_ERRORS.with(|thread_errors_cell| {
             *thread_errors_cell.borrow() - self.errors
-        })
+        }) // KCOV WRONG // NOT TESTED
     }
 
     /// Return whether any calles to `error!` were made in the current thread
