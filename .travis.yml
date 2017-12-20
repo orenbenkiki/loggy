@@ -1,6 +1,6 @@
 # Rust project
 language: rust
-cache: cargo
+# TODOX cache: cargo
 sudo: required
 
 rust:
