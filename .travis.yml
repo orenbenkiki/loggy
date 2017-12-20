@@ -1,6 +1,7 @@
 # Rust project
 language: rust
 cache: cargo
+sudo: required
 
 rust:
 # - 1.22.0
