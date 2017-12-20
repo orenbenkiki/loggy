@@ -11,17 +11,29 @@ use std::thread;
 
 test_loggy!(error_should_be_captured, {
     error!("error");
-    assert_log("test: [ERROR] test_log: error\n");
+    assert_log(
+        r#"
+        test: [ERROR] test_log: error
+    "#,
+    );
 });
 
 test_loggy!(warning_should_be_captured, {
     warn!("warning");
-    assert_log("test: [WARN] test_log: warning\n");
+    assert_log(
+        r#"
+        test: [WARN] test_log: warning
+    "#,
+    );
 });
 
 test_loggy!(info_should_be_captured, {
     info!("information");
-    assert_log("test: [INFO] test_log: information\n");
+    assert_log(
+        r#"
+        test: [INFO] test_log: information
+    "#,
+    );
 });
 
 test_loggy!(debug_should_not_be_captured, {
@@ -33,10 +45,10 @@ test_loggy!(notice_should_be_captured, {
     note!(true, "error");
     note!(false, "warning");
     assert_log(
-        "\
-test: [ERROR] test_log: error
-test: [WARN] test_log: warning
-",
+        r#"
+        test: [ERROR] test_log: error
+        test: [WARN] test_log: warning
+    "#,
     );
 });
 
@@ -48,11 +60,11 @@ test_loggy!(worker_threads_should_be_reported, {
     child.join().unwrap();
     info!("after");
     assert_log(
-        "\
-test: [INFO] test_log: before
-test[1]: [INFO] test_log: child
-test: [INFO] test_log: after
-",
+        r#"
+        test: [INFO] test_log: before
+        test[1]: [INFO] test_log: child
+        test: [INFO] test_log: after
+    "#,
     );
 });
 

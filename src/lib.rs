@@ -9,16 +9,17 @@
 
 //! An opinionated library for developing and testing rust applications that use logging.
 
-extern crate log;
-extern crate time;
-
 #[macro_use]
 extern crate lazy_static;
+extern crate log;
+extern crate time;
+extern crate unindent;
 
 use log::{Log, LogLevel, LogMetadata, LogRecord, SetLoggerError};
 use std::cell::RefCell;
 use std::fmt::Write;
 use std::sync::{Mutex, Once, ONCE_INIT};
+use unindent::unindent;
 
 /// Generate a debug log message.
 ///
@@ -181,12 +182,16 @@ fn set_log_sink(log_sink: LogSink) {
 
 /// Assert that the collected log messages are as expected.
 ///
+/// The expected string is passed through `unindent` prior to the comparison,
+/// to enable proper indentation of the tests data in the code.
+///
 /// This clears the log buffer following the comparison.
 ///
 /// This is meant to be used in tests using the `test_loggy!` macro. Tests using
 /// this macro expect the log buffer being clear at the end of the test, either
 /// by using this function or `clear_log`.
 pub fn assert_log(expected: &str) {
+    let expected = unindent(expected);
     let lock_log_buffer = LOG_BUFFER.lock().unwrap();
     let mut log_buffer = lock_log_buffer.borrow_mut();
     match *log_buffer {
@@ -194,7 +199,7 @@ pub fn assert_log(expected: &str) {
             panic!("asserting log when logging to stderr"); // NOT TESTED
         }
         Some(ref mut actual) => {
-            if actual != expected {
+            if *actual != expected {
                 // BEGIN NOT TESTED
                 print!(
                     "ACTUAL LOG:\n{}\nIS DIFFERENT FROM EXPECTED LOG:\n{}\n",
