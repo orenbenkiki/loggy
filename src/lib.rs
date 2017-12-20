@@ -361,7 +361,7 @@ impl ErrorsScope {
     pub fn errors(&self) -> usize {
         THREAD_ERRORS.with(|thread_errors_cell| {
             *thread_errors_cell.borrow() - self.errors
-        }) // KCOV WRONG // NOT TESTED
+        })
     }
 
     /// Return whether any calles to `error!` were made in the current thread
