@@ -15,6 +15,7 @@ extern crate log;
 extern crate time;
 extern crate unindent;
 
+pub use lazy_static::*;
 use log::{Log, LogLevel, LogMetadata, LogRecord, SetLoggerError};
 use std::cell::RefCell;
 use std::fmt::Write;
@@ -58,6 +59,51 @@ macro_rules! note {
     ($is_error:expr, $($arg:tt)*) => (
         log!(if $is_error { log::LogLevel::Error } else { log::LogLevel::Warn },
              $($arg)*);
+    )
+}
+
+/// Provide program-wide control over whether some note(s) are considered to be
+/// an error.
+///
+/// This is typically invoked as `pub mod foo { is_an_error!(true /* or false */); }`.
+///
+/// This will define a nested module which exposes the following:
+///
+/// * `pub fn is_an_error() -> bool` returns whether the event is considered to
+///   be an error. This is initialized to the value passed to the macro.
+///
+///   This is intended to be used in `note!(foo::is_an_error(), ...)`, using the
+///   `note!` macro provided by `loggy`. It will behave as either an `error!` or
+///   a `warn!` depending on the value.
+///
+/// * `pub fn set_is_an_error(new_value: bool) -> bool` sets whether the event
+///   is considered to be an error, returning the old value for convenience.
+///
+///   This allows the program to modify the setting at run-time, for example by
+///   parsing the command line arguments. TODO: Provide additional functions to
+///   automate this.
+#[macro_export]
+macro_rules! is_an_error {
+    ($default:expr) => (
+        use std::cell::RefCell;
+        use std::sync::Mutex;
+
+        lazy_static!(
+            static ref IS_AN_ERROR: Mutex<RefCell<bool>> = Mutex::new(RefCell::new($default));
+        );
+
+        pub fn set_is_an_error(is_error: bool) -> bool {
+            let lock = IS_AN_ERROR.lock().unwrap();
+            let old_value = *lock.borrow();
+            *lock.borrow_mut() = is_error;
+            old_value
+        }
+
+        pub fn is_an_error() -> bool {
+            let lock = IS_AN_ERROR.lock().unwrap();
+            let value = *lock.borrow();
+            value
+        }
     )
 }
 

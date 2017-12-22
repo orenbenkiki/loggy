@@ -52,6 +52,15 @@ test_loggy!(notice_should_be_captured, {
     );
 });
 
+mod foo { is_an_error!(false); }
+
+test_loggy!(notice_should_be_controlled, {
+    assert!(!foo::is_an_error());
+    assert!(!foo::set_is_an_error(true));
+    assert!(foo::is_an_error());
+    assert!(foo::set_is_an_error(false));
+});
+
 test_loggy!(worker_threads_should_be_reported, {
     info!("before");
     let child = thread::spawn(|| {

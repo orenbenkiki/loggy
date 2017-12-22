@@ -1,6 +1,6 @@
 [package]
 name = "loggy"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Oren Ben-Kiki <oren@ben-kiki.org>"]
 description = "An opinionated library for developing and testing rust applications that use logging."
 repository = "https://github.com/orenbenkiki/loggy"
