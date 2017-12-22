@@ -143,7 +143,31 @@ thread_local!(static THREAD_ID: RefCell<Option<usize>> = RefCell::new(None););
 
 impl Loggy {
     fn format_message(&self, record: &LogRecord) -> String {
-        let mut message = String::with_capacity(256);
+        let now = if self.show_time {
+            time::strftime("%Y-%m-%d %H:%M:%S", &time::now()).unwrap() // NOT TESTED
+        } else {
+            "".to_string()
+        };
+
+        let mut message = String::with_capacity(128);
+        write!(&mut message, "{}\n", record.args()).unwrap();
+
+        let mut buffer = String::with_capacity(128 + message.len());
+        let mut level = record.level().to_string();
+        let mut index = 0;
+        for line in message.lines() {
+            if index == 1 {
+                level = level.to_lowercase();
+            }
+            self.append_prefix(&mut buffer, now.as_ref(), level.as_ref(), &record);
+            write!(&mut buffer, " {}\n", line).unwrap();
+            index += 1;
+        }
+
+        buffer
+    }
+
+    fn append_prefix(&self, mut message: &mut String, now: &str, level: &str, record: &LogRecord) {
         message.push_str(self.prefix);
 
         THREAD_ID.with(|thread_id_cell| {
@@ -163,17 +187,11 @@ impl Loggy {
         message.push(':');
 
         if self.show_time {
-            // BEGIN NOT TESTED
-            message.push(' ');
-            message.push_str(
-                time::strftime("%Y-%m-%d %H:%M:%S", &time::now())
-                    .unwrap()
-                    .as_ref(),
-            );
-            // END NOT TESTED
+            message.push(' '); // NOT TESTED
+            message.push_str(now); // NOT TESTED
         }
 
-        write!(&mut message, " [{}]", record.level().to_string()).unwrap();
+        write!(&mut message, " [{}]", level).unwrap();
 
         if record.level() == LogLevel::Debug {
             write!(
@@ -185,10 +203,6 @@ impl Loggy {
         } else {
             write!(&mut message, " {}:", record.location().module_path()).unwrap();
         }
-
-        write!(&mut message, " {}\n", record.args()).unwrap();
-
-        message
     }
 }
 

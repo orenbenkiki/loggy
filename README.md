@@ -97,6 +97,12 @@ Additional features reflect the library's opinionated nature:
 
 ### Logging Features
 
+- Logging multi-line messages (that contain `\n`) will generate multiple log
+  lines. The first line will include the log level in upper case (e.g.,
+  `[ERROR]`), all the following will specify it in lower case (e.g., `[error]`).
+  The time stamp, if included, will be identical for all these lines. This makes
+  log messages easily `grep`-able, countable, etc.
+
 * It is assumed that either the program is single-threaded, or, if
   multi-threaded, then the main thread spawns off worker threads slaved to the
   main one, to perform transient tasks. Therefore, the thread index is only

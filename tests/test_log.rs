@@ -18,6 +18,17 @@ test_loggy!(error_should_be_captured, {
     );
 });
 
+test_loggy!(multi_line_should_be_captured, {
+    error!("error\ncontinuation\nlines");
+    assert_log(
+        r#"
+        test: [ERROR] test_log: error
+        test: [error] test_log: continuation
+        test: [error] test_log: lines
+    "#,
+    );
+});
+
 test_loggy!(warning_should_be_captured, {
     warn!("warning");
     assert_log(
