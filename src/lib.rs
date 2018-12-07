@@ -14,7 +14,7 @@ extern crate log;
 extern crate time;
 extern crate unindent;
 
-pub use lazy_static::*;
+use lazy_static::*;
 use log::{Log, LogLevel, LogMetadata, LogRecord, SetLoggerError};
 use std::cell::RefCell;
 use std::fmt::Write;
