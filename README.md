@@ -1,4 +1,4 @@
-# loggy [![Api Docs](https://docs.rs/loggy/badge.svg)](https://docs.rs/loggy) [![Build Status](https://api.travis-ci.org/orenbenkiki/loggy.svg?branch=master)](https://travis-ci.org/orenbenkiki/loggy) [![codecov](https://codecov.io/gh/orenbenkiki/loggy/branch/master/graph/badge.svg)](https://codecov.io/gh/orenbenkiki/loggy)
+# loggy [![Api Docs](https://docs.rs/loggy/badge.svg)](https://docs.rs/loggy) [![Build Status](https://api.travis-ci.org/orenbenkiki/loggy.svg?branch=master)](https://travis-ci.org/orenbenkiki/loggy) [![codecov](https://codecov.io/gh/orenbenkiki/loggy/branch/master/graph/badge.svg)](https://codecov.io/gh/orenbenkiki/loggy) [![docs](https://docs.rs/loggy/badge.svg)](https://docs.rs/crate/loggy)
 
 An opinionated library for developing and testing rust applications that use
 logging.
