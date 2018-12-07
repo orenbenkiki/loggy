@@ -1,11 +1,9 @@
 language: rust
 cache: cargo
-sudo: required
 
 rust:
-- 1.22.0
+- 1.31.0
 - stable
-- beta
 - nightly
 matrix:
   allow-failures:

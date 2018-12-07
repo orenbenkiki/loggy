@@ -6,7 +6,7 @@ extern crate loggy;
 #[macro_use]
 extern crate log;
 
-use loggy::{ErrorsScope, assert_log, clear_log};
+use loggy::{assert_log, clear_log, ErrorsScope};
 use std::thread;
 
 test_loggy!(error_should_be_captured, {
@@ -63,7 +63,9 @@ test_loggy!(notice_should_be_captured, {
     );
 });
 
-mod foo { is_an_error!(false); }
+mod foo {
+    is_an_error!(false);
+}
 
 test_loggy!(notice_should_be_controlled, {
     assert!(!foo::is_an_error());

@@ -14,7 +14,8 @@ fn main() {
         prefix: "example",
         show_time: true,
         log_level: LogLevel::Warn,
-    }).unwrap();
+    })
+    .unwrap();
 
     note!(false, "This is a example message.");
 }

@@ -9,7 +9,6 @@
 
 //! An opinionated library for developing and testing rust applications that use logging.
 
-#[macro_use]
 extern crate lazy_static;
 extern crate log;
 extern crate time;
@@ -84,13 +83,13 @@ macro_rules! note {
 ///   automate this.
 #[macro_export]
 macro_rules! is_an_error {
-    ($default:expr) => (
+    ($default:expr) => {
         use std::cell::RefCell;
         use std::sync::Mutex;
 
-        lazy_static!(
+        lazy_static! {
             static ref IS_AN_ERROR: Mutex<RefCell<bool>> = Mutex::new(RefCell::new($default));
-        );
+        }
 
         pub fn set_is_an_error(is_error: bool) -> bool {
             let lock = IS_AN_ERROR.lock().unwrap();
@@ -104,7 +103,7 @@ macro_rules! is_an_error {
             let value = *lock.borrow();
             value
         }
-    )
+    };
 }
 
 /// Control the behavior of the `loggy` logger.
@@ -137,9 +136,13 @@ impl Log for Loggy {
     }
 }
 
-lazy_static!(static ref TOTAL_THREADS: Mutex<RefCell<usize>> = Mutex::new(RefCell::new(0)););
+lazy_static! {
+    static ref TOTAL_THREADS: Mutex<RefCell<usize>> = Mutex::new(RefCell::new(0));
+}
 
-thread_local!(static THREAD_ID: RefCell<Option<usize>> = RefCell::new(None););
+thread_local!(
+    static THREAD_ID: RefCell<Option<usize>> = RefCell::new(None);
+);
 
 impl Loggy {
     fn format_message(&self, record: &LogRecord) -> String {
@@ -150,18 +153,16 @@ impl Loggy {
         };
 
         let mut message = String::with_capacity(128);
-        write!(&mut message, "{}\n", record.args()).unwrap();
+        writeln!(&mut message, "{}", record.args()).unwrap();
 
         let mut buffer = String::with_capacity(128 + message.len());
         let mut level = record.level().to_string();
-        let mut index = 0;
-        for line in message.lines() {
-            if index == 1 {
+        for (index, line) in message.lines().enumerate() {
+            if index > 0 {
                 level = level.to_lowercase();
             }
             self.append_prefix(&mut buffer, now.as_ref(), level.as_ref(), &record);
-            write!(&mut buffer, " {}\n", line).unwrap();
-            index += 1;
+            writeln!(&mut buffer, " {}", line).unwrap();
         }
 
         buffer
@@ -199,16 +200,21 @@ impl Loggy {
                 " {}:{}:",
                 record.location().file(),
                 record.location().line()
-            ).unwrap();
+            )
+            .unwrap();
         } else {
             write!(&mut message, " {}:", record.location().module_path()).unwrap();
         }
     }
 }
 
-lazy_static!(static ref TOTAL_ERRORS: Mutex<RefCell<usize>> = Mutex::new(RefCell::new(0)););
+lazy_static! {
+    static ref TOTAL_ERRORS: Mutex<RefCell<usize>> = Mutex::new(RefCell::new(0));
+}
 
-thread_local!(static THREAD_ERRORS: RefCell<usize> = RefCell::new(0););
+thread_local!(
+    static THREAD_ERRORS: RefCell<usize> = RefCell::new(0);
+);
 
 fn count_errors(level: LogLevel) {
     if level == LogLevel::Error {
@@ -225,10 +231,11 @@ enum LogSink {
     Buffer,
 }
 
-lazy_static!(static ref LOG_BUFFER: Mutex<RefCell<Option<String>>> =
-    Mutex::new(RefCell::new(None)););
+lazy_static! {
+    static ref LOG_BUFFER: Mutex<RefCell<Option<String>>> = Mutex::new(RefCell::new(None));
+}
 
-fn set_log_sink(log_sink: LogSink) {
+fn set_log_sink(log_sink: &LogSink) {
     let lock_log_buffer = LOG_BUFFER.lock().unwrap();
     match log_sink {
         LogSink::Stderr => {
@@ -263,8 +270,7 @@ pub fn assert_log(expected: &str) {
                 // BEGIN NOT TESTED
                 print!(
                     "ACTUAL LOG:\n{}\nIS DIFFERENT FROM EXPECTED LOG:\n{}\n",
-                    actual,
-                    expected
+                    actual, expected
                 );
                 assert_eq!("ACTUAL LOG", "EXPECTED LOG");
             } // END NOT TESTED
@@ -291,8 +297,11 @@ pub fn clear_log() {
     }
 }
 
-lazy_static!(static ref MIRROR_TO_STDERR: bool =
-    std::env::var("LOGGY_MIRROR_TO_STDERR").map(|var| var != "").unwrap_or(false););
+lazy_static! {
+    static ref MIRROR_TO_STDERR: bool = std::env::var("LOGGY_MIRROR_TO_STDERR")
+        .map(|var| var != "") // NOT TESTED
+        .unwrap_or(false);
+}
 
 fn emit_message(log_level: LogLevel, message: &str) {
     if log_level == LogLevel::Debug {
@@ -309,7 +318,7 @@ fn emit_message(log_level: LogLevel, message: &str) {
             if *MIRROR_TO_STDERR {
                 eprint!("{}", message); // NOT TESTED
             }
-            buffer.push_str(message.as_ref());
+            buffer.push_str(message);
         }
     }
 }
@@ -324,9 +333,10 @@ pub fn init(loggy: Loggy) -> Result<(), SetLoggerError> {
                 LogLevel::Debug
             } else {
                 loggy.log_level
-            }.to_log_level_filter(),
+            }
+            .to_log_level_filter(),
         );
-        return Box::new(loggy);
+        Box::new(loggy)
     })
 }
 
@@ -377,7 +387,8 @@ pub fn before_test() {
             prefix: "test",
             show_time: false,
             log_level: LogLevel::Info,
-        }).unwrap()
+        })
+        .unwrap()
     });
 
     let lock_total_threads = TOTAL_THREADS.lock().unwrap();
@@ -386,19 +397,21 @@ pub fn before_test() {
     let lock_errors = TOTAL_ERRORS.lock().unwrap();
     *lock_errors.borrow_mut() = 0;
 
-    THREAD_ID.with(|thread_id_cell| { *thread_id_cell.borrow_mut() = None; });
+    THREAD_ID.with(|thread_id_cell| {
+        *thread_id_cell.borrow_mut() = None;
+    });
 
     THREAD_ERRORS.with(|thread_errors_cell| {
         *thread_errors_cell.borrow_mut() = 0;
     });
 
-    set_log_sink(LogSink::Buffer);
+    set_log_sink(&LogSink::Buffer);
 }
 
 #[doc(hidden)]
 pub fn after_test() {
     assert_log("");
-    set_log_sink(LogSink::Stderr);
+    set_log_sink(&LogSink::Stderr);
 }
 
 /// Track the number of errors in the scope of the lifetime of the instance of
@@ -407,14 +420,13 @@ pub struct ErrorsScope {
     errors: usize,
 }
 
+#[allow(clippy::new_without_default_derive)]
 impl ErrorsScope {
-    /// Create a new errors tracking scope.
-    ///
     /// Initially, the scope is considered to have had no errors, regardless of
     /// any previous calls to `error!`.
     pub fn new() -> ErrorsScope {
-        THREAD_ERRORS.with(|thread_errors_cell| {
-            ErrorsScope { errors: *thread_errors_cell.borrow() }
+        THREAD_ERRORS.with(|thread_errors_cell| ErrorsScope {
+            errors: *thread_errors_cell.borrow(),
         })
     }
 
@@ -424,9 +436,7 @@ impl ErrorsScope {
     /// This includes calls to `note!` if the value given to `is_error` is
     /// `true`.
     pub fn errors(&self) -> usize {
-        THREAD_ERRORS.with(|thread_errors_cell| {
-            *thread_errors_cell.borrow() - self.errors
-        })
+        THREAD_ERRORS.with(|thread_errors_cell| *thread_errors_cell.borrow() - self.errors)
     }
 
     /// Return whether any calles to `error!` were made in the current thread
@@ -442,6 +452,7 @@ impl ErrorsScope {
 /// Return the total number of calls to `error!` in the whole program.
 ///
 /// This is reset for each test using the `test_loggy!` macro.
+#[allow(clippy::let_and_return)]
 pub fn errors() -> usize {
     let lock_errors = TOTAL_ERRORS.lock().unwrap();
     let errors = *lock_errors.borrow();
