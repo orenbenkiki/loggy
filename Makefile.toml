@@ -1,6 +1,7 @@
 [env]
 RUST_TEST_THREADS = "1"
 CARGO_MAKE_RUN_CODECOV = "true"
+RUSTFLAGS = "-D warnings"
 
 # TODO: Remove this when cargo-make automatically runs the default rustfmt.
 [tasks.format-stable]

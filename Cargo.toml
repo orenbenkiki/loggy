@@ -6,8 +6,8 @@ authors = ["Oren Ben-Kiki <oren@ben-kiki.org>"]
 description = "An opinionated library for developing and testing rust applications that use logging."
 repository = "https://github.com/orenbenkiki/loggy"
 readme = "README.md"
-keywords = ["log", "macro", "testing", "logging"]
-categories = ["development-tools::testing"]
+keywords = ["logging", "testing"]
+categories = ["development-tools::debugging", "development-tools::testing"]
 license = "MIT"
 
 [dependencies]
