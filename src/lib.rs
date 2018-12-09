@@ -1,4 +1,4 @@
-// Copyright 2017 Oren Ben-Kiki. See the COPYRIGHT
+// Copyright (C) 2017,2018 Oren Ben-Kiki. See the LICENSE.txt
 // file at the top-level directory of this distribution and at
 // http://rust-lang.org/COPYRIGHT.
 //
