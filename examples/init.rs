@@ -6,16 +6,16 @@ extern crate log;
 #[macro_use]
 extern crate loggy;
 
-use log::LogLevel;
+use log::LevelFilter;
 use loggy::Loggy;
 
 fn main() {
-    loggy::init(Loggy {
+    log::set_logger(&Loggy {
         prefix: "example",
         show_time: true,
-        log_level: LogLevel::Warn,
     })
     .unwrap();
+    log::set_max_level(LevelFilter::Warn);
 
     note!(false, "This is a example message.");
 }

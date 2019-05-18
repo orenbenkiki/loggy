@@ -13,4 +13,4 @@ before_script:
 - which cargo-make || cargo install cargo-make
 
 script:
-- cargo make ci-flow
+- cargo make ci
