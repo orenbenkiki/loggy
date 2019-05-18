@@ -4,8 +4,8 @@ An opinionated library for developing and testing rust applications that use
 logging.
 
 This is inspired by [simple-logging](https://github.com/Ereski/simple-logging)
-implementation, with additional features meant to support development of
-applications (as opposed to libraries).
+implementation, with additional features focusing on development of applications
+(as opposed to libraries).
 
 ## Building and Testing
 
@@ -21,12 +21,13 @@ The main program will need to set up the logger:
 
 ```rust
 extern crate loggy;
+extern crate log;
 
-loggy::init(Loggy {
+log::set_logger(&Loggy {
     prefix: "...", // Typically, the name of the program.
     show_time: true, // Or false.
-    log_level: LogLevel::Warn, // Or Info, or Error.
-});
+}).unwrap();
+log::set_max_level(log::LevelFilter::Info); // Or whatever level you want.
 ```
 
 To provide user control over handling issues:
