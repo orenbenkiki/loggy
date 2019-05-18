@@ -54,11 +54,11 @@ macro_rules! todox {
 macro_rules! note {
     ($is_error:expr, target: $target:expr, $($arg:tt)*) => (
         log!(target: $target,
-             if $is_error { Level::Error } else { Level::Warn },
+             if $is_error { log::Level::Error } else { log::Level::Warn },
              $($arg)*);
     );
     ($is_error:expr, $($arg:tt)*) => (
-        log!(if $is_error { Level::Error } else { Level::Warn },
+        log!(if $is_error { log::Level::Error } else { log::Level::Warn },
              $($arg)*);
     )
 }
