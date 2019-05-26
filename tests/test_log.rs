@@ -1,6 +1,4 @@
-// FILE NOT TESTED
-
-#[macro_use]
+#[macro_use] // NOT TESTED
 extern crate loggy;
 
 #[macro_use]
