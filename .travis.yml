@@ -28,3 +28,4 @@ script:
 - sccache -s
 - cargo make ci
 - sccache -s
+- sccache --stop-server
