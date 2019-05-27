@@ -6,10 +6,10 @@ cache:
 
 rust:
 - stable
-- nightly
+# - nightly
 
 matrix:
-  allow_failures:
+  allow-failures:
   - rust: nightly
 
 before_script:
@@ -20,6 +20,9 @@ env:
 - RUSTC_WRAPPER=`which sccache`
 
 script:
+- echo $RUSTC_WRAPPER
+- export RUSTC_WRAPPER=`which sccache`
+- echo $RUSTC_WRAPPER
 - sccache -s
-- cargo make ci
+- RUSTC_WRAPPER=`which sccache` cargo make ci
 - sccache -s
