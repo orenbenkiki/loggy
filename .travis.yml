@@ -4,6 +4,11 @@ cache:
   - $HOME/.cargo
   - $HOME/.cache
 
+addons:
+  apt:
+    packages:
+    - kcov
+
 rust:
 - stable
 # - nightly
@@ -16,13 +21,8 @@ before_script:
 - which sccache || cargo install sccache
 - which cargo-make || cargo install cargo-make
 
-env:
-- RUSTC_WRAPPER=`which sccache`
-
 script:
-- echo $RUSTC_WRAPPER
 - export RUSTC_WRAPPER=`which sccache`
-- echo $RUSTC_WRAPPER
 - sccache -s
-- RUSTC_WRAPPER=`which sccache` cargo make ci
+- cargo make ci
 - sccache -s
