@@ -1,8 +1,9 @@
 language: rust
 cache:
   directories:
-  - $HOME/.cargo
   - $HOME/.cache
+  - $HOME/.cargo
+  - $HOME/.ccache
 
 addons:
   apt:
@@ -23,6 +24,7 @@ before_script:
 
 script:
 - export RUSTC_WRAPPER=`which sccache`
+- which sccache
 - sccache -s
 - cargo make ci
 - sccache -s
