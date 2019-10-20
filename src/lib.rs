@@ -20,7 +20,7 @@ use std::cell::RefCell;
 use std::fmt::Write;
 use std::io::stderr;
 use std::io::Write as IoWrite;
-use std::sync::{Mutex, Once, ONCE_INIT};
+use std::sync::{Mutex, Once};
 use unindent::unindent;
 
 /// Generate a debug log message.
@@ -325,7 +325,7 @@ fn emit_message(level: Level, message: &str) {
     }
 }
 
-static LOGGER_INIT: Once = ONCE_INIT;
+static LOGGER_ONCE: Once = Once::new();
 
 /// Create a test case using `loggy`.
 ///
@@ -367,7 +367,7 @@ macro_rules! test_loggy {
 
 #[doc(hidden)]
 pub fn before_test() {
-    LOGGER_INIT.call_once(|| {
+    LOGGER_ONCE.call_once(|| {
         log::set_logger(&Loggy {
             prefix: "test",
             show_time: false,
