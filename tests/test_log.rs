@@ -1,4 +1,4 @@
-#[macro_use] // NOT TESTED
+#[macro_use]
 extern crate loggy;
 
 #[macro_use]
