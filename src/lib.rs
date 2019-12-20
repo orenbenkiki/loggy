@@ -149,7 +149,7 @@ thread_local!(
 impl Loggy {
     fn format_message(&self, record: &Record) -> String {
         let now = if self.show_time {
-            time::strftime("%Y-%m-%d %H:%M:%S", &time::now()).unwrap() // NOT TESTED
+            time::OffsetDateTime::now().format("%Y-%m-%d %H:%M:%S")
         } else {
             "".to_string()
         };
