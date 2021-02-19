@@ -149,7 +149,9 @@ thread_local!(
 impl Loggy {
     fn format_message(&self, record: &Record) -> String {
         let now = if self.show_time {
-            time::OffsetDateTime::now_local().format("%Y-%m-%d %H:%M:%S") // MAYBE TESTED
+            time::OffsetDateTime::try_now_local() // MAYBE TESTED
+                .unwrap()
+                .format("%Y-%m-%d %H:%M:%S")
         } else {
             "".to_string()
         };
@@ -301,7 +303,7 @@ pub fn clear_log() {
 
 lazy_static! {
     static ref MIRROR_TO_STDERR: bool = std::env::var("LOGGY_MIRROR_TO_STDERR")
-        .map(|var| var != "") // MAYBE TESTED
+        .map(|var| !var.is_empty()) // MAYBE TESTED
         .unwrap_or(false);
 }
 
