@@ -31,9 +31,9 @@ before_script:
 
 script:
 - export RUSTC_WRAPPER=`which sccache`
-- rustup component add rustfmt || export SCMF_DISABLE_FORMAT=1 SCMF_DISABLE_CHECK_FORMAT=1
+- rustup component add rustfmt || export SCMF_DISABLE_FORMAT=1 SCMF_DISABLE_CHECK_FORMAT=1 SCMF_DISABLE_RUSTFMT=1
 - cargo make ci
 - sccache --stop-server
 
-after_success: |
-    bash <(curl -s https://codecov.io/bash) && echo "Uploaded code coverage"
+after_success:
+- test "$TRAVIS_RUST_VERSION" = "stable" && bash <(curl -s https://codecov.io/bash) && echo "Uploaded code coverage"

@@ -138,6 +138,7 @@ impl Log for Loggy {
     // END NOT TESTED
 }
 
+// BEGIN MAYBE TESTED
 lazy_static! {
     static ref TOTAL_THREADS: Mutex<RefCell<usize>> = Mutex::new(RefCell::new(0));
 }
@@ -145,6 +146,7 @@ lazy_static! {
 thread_local!(
     static THREAD_ID: RefCell<Option<usize>> = RefCell::new(None);
 );
+// END MAYBE TESTED
 
 impl Loggy {
     fn format_message(&self, record: &Record) -> String {
@@ -199,6 +201,7 @@ impl Loggy {
         write!(&mut message, " [{}]", level).unwrap();
 
         if record.level() == Level::Debug {
+            // BEGIN MAYBE TESTED
             write!(
                 &mut message,
                 " {}:{}:",
@@ -206,12 +209,14 @@ impl Loggy {
                 record.line().unwrap()
             )
             .unwrap();
+            // END MAYBE TESTED
         } else {
             write!(&mut message, " {}:", record.module_path().unwrap()).unwrap();
         }
     }
 }
 
+// BEGIN MAYBE TESTED
 lazy_static! {
     static ref TOTAL_ERRORS: Mutex<RefCell<usize>> = Mutex::new(RefCell::new(0));
 }
@@ -219,6 +224,7 @@ lazy_static! {
 thread_local!(
     static THREAD_ERRORS: RefCell<usize> = RefCell::new(0);
 );
+// END MAYBE TESTED
 
 fn count_errors(level: Level) {
     if level == Level::Error {
@@ -235,9 +241,11 @@ enum LogSink {
     Buffer,
 }
 
+// BEGIN MAYBE TESTED
 lazy_static! {
     static ref LOG_BUFFER: Mutex<RefCell<Option<String>>> = Mutex::new(RefCell::new(None));
 }
+// END MAYBE TESTED
 
 fn set_log_sink(log_sink: &LogSink) {
     let lock_log_buffer = LOG_BUFFER.lock().unwrap();
@@ -301,16 +309,20 @@ pub fn clear_log() {
     }
 }
 
+// BEGIN MAYBE TESTED
 lazy_static! {
     static ref MIRROR_TO_STDERR: bool = std::env::var("LOGGY_MIRROR_TO_STDERR")
         .map(|var| !var.is_empty()) // MAYBE TESTED
         .unwrap_or(false);
 }
+// END MAYBE TESTED
 
 fn emit_message(level: Level, message: &str) {
     if level == Level::Debug {
+        // BEGIN MAYBE TESTED
         eprint!("{}", message);
         return;
+        // END MAYBE TESTED
     }
     let lock_log_buffer = LOG_BUFFER.lock().unwrap();
     let mut log_buffer = lock_log_buffer.borrow_mut();
@@ -370,12 +382,14 @@ macro_rules! test_loggy {
 #[doc(hidden)]
 pub fn before_test() {
     LOGGER_ONCE.call_once(|| {
+        // BEGIN MAYBE TESTED
         log::set_logger(&Loggy {
             prefix: "test",
             show_time: false,
         })
         .unwrap();
         log::set_max_level(LevelFilter::Debug);
+        // END MAYBE TESTED
     });
 
     let lock_total_threads = TOTAL_THREADS.lock().unwrap();
