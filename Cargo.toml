@@ -19,5 +19,5 @@ repository = "orenbenkiki/loggy"
 [dependencies]
 lazy_static = "^1.4.0"
 log = "^0.4.14"
-time = "^0.2.26"
+time = "^0.3.0"
 unindent = "^0.1.7"
