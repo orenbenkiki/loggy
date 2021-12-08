@@ -1,5 +1,3 @@
-// FILE MAYBE TESTED
-
 #[macro_use]
 extern crate loggy;
 

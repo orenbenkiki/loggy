@@ -1,8 +1,10 @@
-Cargo.lock
 cobertura.xml
 /docs/
 *junk*
+.make.*
 Makefile.scmf.toml
 **/*.rs.bk
 .*.sw*
+tags
+TAGS
 /target/

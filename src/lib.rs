@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2019 Oren Ben-Kiki. See the LICENSE.txt
+// Copyright (C) 2017-2021 Oren Ben-Kiki. See the LICENSE.txt
 // file at the top-level directory of this distribution and at
 // http://rust-lang.org/COPYRIGHT.
 //
@@ -138,22 +138,27 @@ impl Log for Loggy {
     // END NOT TESTED
 }
 
-// BEGIN MAYBE TESTED
 lazy_static! {
     static ref TOTAL_THREADS: Mutex<RefCell<usize>> = Mutex::new(RefCell::new(0));
+    // BEGIN NOT TESTED
+    static ref TIME_FORMAT: Vec<time::format_description::FormatItem<'static>> =
+        time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap();
+    // END NOT TESTED
 }
 
 thread_local!(
     static THREAD_ID: RefCell<Option<usize>> = RefCell::new(None);
 );
-// END MAYBE TESTED
 
 impl Loggy {
     fn format_message(&self, record: &Record) -> String {
         let now = if self.show_time {
-            time::OffsetDateTime::try_now_local() // MAYBE TESTED
+            // BEGIN NOT TESTED
+            time::OffsetDateTime::now_local()
                 .unwrap()
-                .format("%Y-%m-%d %H:%M:%S")
+                .format(&TIME_FORMAT)
+                .unwrap()
+            // END NOT TESTED
         } else {
             "".to_string()
         };
@@ -167,7 +172,7 @@ impl Loggy {
             if index > 0 {
                 level = level.to_lowercase();
             }
-            self.append_prefix(&mut buffer, now.as_ref(), level.as_ref(), &record);
+            self.append_prefix(&mut buffer, now.as_ref(), level.as_ref(), record);
             writeln!(&mut buffer, " {}", line).unwrap();
         }
 
@@ -201,7 +206,6 @@ impl Loggy {
         write!(&mut message, " [{}]", level).unwrap();
 
         if record.level() == Level::Debug {
-            // BEGIN MAYBE TESTED
             write!(
                 &mut message,
                 " {}:{}:",
@@ -209,14 +213,12 @@ impl Loggy {
                 record.line().unwrap()
             )
             .unwrap();
-            // END MAYBE TESTED
         } else {
             write!(&mut message, " {}:", record.module_path().unwrap()).unwrap();
         }
     }
 }
 
-// BEGIN MAYBE TESTED
 lazy_static! {
     static ref TOTAL_ERRORS: Mutex<RefCell<usize>> = Mutex::new(RefCell::new(0));
 }
@@ -224,7 +226,6 @@ lazy_static! {
 thread_local!(
     static THREAD_ERRORS: RefCell<usize> = RefCell::new(0);
 );
-// END MAYBE TESTED
 
 fn count_errors(level: Level) {
     if level == Level::Error {
@@ -241,11 +242,9 @@ enum LogSink {
     Buffer,
 }
 
-// BEGIN MAYBE TESTED
 lazy_static! {
     static ref LOG_BUFFER: Mutex<RefCell<Option<String>>> = Mutex::new(RefCell::new(None));
 }
-// END MAYBE TESTED
 
 fn set_log_sink(log_sink: &LogSink) {
     let lock_log_buffer = LOG_BUFFER.lock().unwrap();
@@ -309,20 +308,18 @@ pub fn clear_log() {
     }
 }
 
-// BEGIN MAYBE TESTED
 lazy_static! {
     static ref MIRROR_TO_STDERR: bool = std::env::var("LOGGY_MIRROR_TO_STDERR")
-        .map(|var| !var.is_empty()) // MAYBE TESTED
+        // BEGIN NOT TESTED
+        .map(|var| !var.is_empty())
         .unwrap_or(false);
+        // END NOT TESTED
 }
-// END MAYBE TESTED
 
 fn emit_message(level: Level, message: &str) {
     if level == Level::Debug {
-        // BEGIN MAYBE TESTED
         eprint!("{}", message);
         return;
-        // END MAYBE TESTED
     }
     let lock_log_buffer = LOG_BUFFER.lock().unwrap();
     let mut log_buffer = lock_log_buffer.borrow_mut();
@@ -332,7 +329,7 @@ fn emit_message(level: Level, message: &str) {
         }
         Some(ref mut buffer) => {
             if *MIRROR_TO_STDERR {
-                eprint!("{}", message); // MAYBE TESTED
+                eprint!("{}", message); // NOT TESTED
             }
             buffer.push_str(message);
         }
@@ -382,14 +379,12 @@ macro_rules! test_loggy {
 #[doc(hidden)]
 pub fn before_test() {
     LOGGER_ONCE.call_once(|| {
-        // BEGIN MAYBE TESTED
         log::set_logger(&Loggy {
             prefix: "test",
             show_time: false,
         })
         .unwrap();
         log::set_max_level(LevelFilter::Debug);
-        // END MAYBE TESTED
     });
 
     let lock_total_threads = TOTAL_THREADS.lock().unwrap();
