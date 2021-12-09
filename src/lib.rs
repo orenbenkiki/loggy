@@ -16,7 +16,7 @@ extern crate unindent;
 
 use lazy_static::*;
 use log::{Level, LevelFilter, Log, Metadata, Record};
-use std::cell::RefCell;
+use std::cell::Cell;
 use std::fmt::Write;
 use std::io::stderr;
 use std::io::Write as IoWrite;
@@ -86,24 +86,17 @@ macro_rules! note {
 #[macro_export]
 macro_rules! is_an_error {
     ($default:expr) => {
-        use std::cell::RefCell;
-        use std::sync::Mutex;
-
         lazy_static! {
-            static ref IS_AN_ERROR: Mutex<RefCell<bool>> = Mutex::new(RefCell::new($default));
+            static ref IS_AN_ERROR: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new($default);
         }
 
         pub fn set_is_an_error(is_error: bool) -> bool {
-            let lock = IS_AN_ERROR.lock().unwrap();
-            let old_value = *lock.borrow();
-            *lock.borrow_mut() = is_error;
-            old_value
+            IS_AN_ERROR.swap(is_error, std::sync::atomic::Ordering::Relaxed)
         }
 
         pub fn is_an_error() -> bool {
-            let lock = IS_AN_ERROR.lock().unwrap();
-            let value = *lock.borrow();
-            value
+            IS_AN_ERROR.load(std::sync::atomic::Ordering::Relaxed)
         }
     };
 }
@@ -139,7 +132,7 @@ impl Log for Loggy {
 }
 
 lazy_static! {
-    static ref TOTAL_THREADS: Mutex<RefCell<usize>> = Mutex::new(RefCell::new(0));
+    static ref TOTAL_THREADS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     // BEGIN NOT TESTED
     static ref TIME_FORMAT: Vec<time::format_description::FormatItem<'static>> =
         time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap();
@@ -147,7 +140,7 @@ lazy_static! {
 }
 
 thread_local!(
-    static THREAD_ID: RefCell<Option<usize>> = RefCell::new(None);
+    static THREAD_ID: Cell<Option<usize>> = Cell::new(None);
 );
 
 impl Loggy {
@@ -183,14 +176,12 @@ impl Loggy {
         message.push_str(self.prefix);
 
         THREAD_ID.with(|thread_id_cell| {
-            let mut current_thread_option = thread_id_cell.borrow_mut();
-            if current_thread_option.is_none() {
-                let lock_total_threads = TOTAL_THREADS.lock().unwrap();
-                let mut total_threads = lock_total_threads.borrow_mut();
-                *current_thread_option = Some(*total_threads);
-                *total_threads += 1;
+            if thread_id_cell.get().is_none() {
+                let total_threads =
+                    TOTAL_THREADS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                thread_id_cell.set(Some(total_threads));
             }
-            let current_thread_id = current_thread_option.unwrap();
+            let current_thread_id = thread_id_cell.get().unwrap();
             if current_thread_id > 0 {
                 write!(&mut message, "[{}]", current_thread_id).unwrap();
             }
@@ -220,19 +211,19 @@ impl Loggy {
 }
 
 lazy_static! {
-    static ref TOTAL_ERRORS: Mutex<RefCell<usize>> = Mutex::new(RefCell::new(0));
+    static ref TOTAL_ERRORS: std::sync::atomic::AtomicUsize =
+        std::sync::atomic::AtomicUsize::new(0);
 }
 
 thread_local!(
-    static THREAD_ERRORS: RefCell<usize> = RefCell::new(0);
+    static THREAD_ERRORS: Cell<usize> = Cell::new(0);
 );
 
 fn count_errors(level: Level) {
     if level == Level::Error {
-        let lock_errors = TOTAL_ERRORS.lock().unwrap();
-        *lock_errors.borrow_mut() += 1;
+        TOTAL_ERRORS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         THREAD_ERRORS.with(|thread_errors_cell| {
-            *thread_errors_cell.borrow_mut() += 1;
+            thread_errors_cell.set(thread_errors_cell.get() + 1);
         });
     }
 }
@@ -243,17 +234,16 @@ enum LogSink {
 }
 
 lazy_static! {
-    static ref LOG_BUFFER: Mutex<RefCell<Option<String>>> = Mutex::new(RefCell::new(None));
+    static ref LOG_BUFFER: Mutex<Cell<Option<String>>> = Mutex::new(Cell::new(None));
 }
 
 fn set_log_sink(log_sink: &LogSink) {
-    let lock_log_buffer = LOG_BUFFER.lock().unwrap();
     match log_sink {
         LogSink::Stderr => {
-            *lock_log_buffer.borrow_mut() = None;
+            LOG_BUFFER.lock().unwrap().set(None);
         }
         LogSink::Buffer => {
-            *lock_log_buffer.borrow_mut() = Some(String::new());
+            LOG_BUFFER.lock().unwrap().set(Some(String::new()));
         }
     };
 }
@@ -270,13 +260,12 @@ fn set_log_sink(log_sink: &LogSink) {
 /// by using this function or `clear_log`.
 pub fn assert_log(expected: &str) {
     let expected = unindent(expected);
-    let lock_log_buffer = LOG_BUFFER.lock().unwrap();
-    let mut log_buffer = lock_log_buffer.borrow_mut();
-    match *log_buffer {
+    let mut log_buffer = LOG_BUFFER.lock().unwrap();
+    match log_buffer.get_mut() {
         None => {
             panic!("asserting log when logging to stderr"); // NOT TESTED
         }
-        Some(ref mut actual) => {
+        Some(actual) => {
             if *actual != expected {
                 // BEGIN NOT TESTED
                 print!(
@@ -296,15 +285,10 @@ pub fn assert_log(expected: &str) {
 /// this macro expect the log buffer being clear at the end of the test, either
 /// by using this function or `assert_log`.
 pub fn clear_log() {
-    let lock_log_buffer = LOG_BUFFER.lock().unwrap();
-    let mut log_buffer = lock_log_buffer.borrow_mut();
-    match *log_buffer {
-        None => {
-            panic!("clearing log when logging to stderr"); // NOT TESTED
-        }
-        Some(ref mut actual) => {
-            actual.clear();
-        }
+    let mut log_buffer = LOG_BUFFER.lock().unwrap();
+    match log_buffer.get_mut() {
+        None => panic!("clearing log when logging to stderr"), // NOT TESTED
+        Some(buffer) => buffer.clear(),
     }
 }
 
@@ -321,13 +305,12 @@ fn emit_message(level: Level, message: &str) {
         eprint!("{}", message);
         return;
     }
-    let lock_log_buffer = LOG_BUFFER.lock().unwrap();
-    let mut log_buffer = lock_log_buffer.borrow_mut();
-    match *log_buffer {
+    let mut log_buffer = LOG_BUFFER.lock().unwrap();
+    match log_buffer.get_mut() {
         None => {
             eprint!("{}", message); // NOT TESTED
         }
-        Some(ref mut buffer) => {
+        Some(buffer) => {
             if *MIRROR_TO_STDERR {
                 eprint!("{}", message); // NOT TESTED
             }
@@ -387,18 +370,15 @@ pub fn before_test() {
         log::set_max_level(LevelFilter::Debug);
     });
 
-    let lock_total_threads = TOTAL_THREADS.lock().unwrap();
-    *lock_total_threads.borrow_mut() = 0;
-
-    let lock_errors = TOTAL_ERRORS.lock().unwrap();
-    *lock_errors.borrow_mut() = 0;
+    TOTAL_THREADS.store(0, std::sync::atomic::Ordering::Relaxed);
+    TOTAL_ERRORS.store(0, std::sync::atomic::Ordering::Relaxed);
 
     THREAD_ID.with(|thread_id_cell| {
-        *thread_id_cell.borrow_mut() = None;
+        thread_id_cell.set(None);
     });
 
     THREAD_ERRORS.with(|thread_errors_cell| {
-        *thread_errors_cell.borrow_mut() = 0;
+        thread_errors_cell.set(0);
     });
 
     set_log_sink(&LogSink::Buffer);
@@ -422,7 +402,7 @@ impl ErrorsScope {
     /// any previous calls to `error!`.
     pub fn new() -> ErrorsScope {
         THREAD_ERRORS.with(|thread_errors_cell| ErrorsScope {
-            errors: *thread_errors_cell.borrow(),
+            errors: thread_errors_cell.get(),
         })
     }
 
@@ -432,7 +412,7 @@ impl ErrorsScope {
     /// This includes calls to `note!` if the value given to `is_error` is
     /// `true`.
     pub fn errors(&self) -> usize {
-        THREAD_ERRORS.with(|thread_errors_cell| *thread_errors_cell.borrow() - self.errors)
+        THREAD_ERRORS.with(|thread_errors_cell| thread_errors_cell.get() - self.errors)
     }
 
     /// Return whether any calles to `error!` were made in the current thread
@@ -450,9 +430,7 @@ impl ErrorsScope {
 /// This is reset for each test using the `test_loggy!` macro.
 #[allow(clippy::let_and_return)]
 pub fn errors() -> usize {
-    let lock_errors = TOTAL_ERRORS.lock().unwrap();
-    let errors = *lock_errors.borrow();
-    errors
+    TOTAL_ERRORS.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 /// Return whether there were any calls to `error!` in the whole program.
