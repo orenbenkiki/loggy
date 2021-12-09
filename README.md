@@ -30,7 +30,19 @@ log::set_logger(&Loggy {
 log::set_max_level(log::LevelFilter::Info); // Or whatever level you want.
 ```
 
-To provide user control over handling issues:
+To override the default module name prefix and replace it with an arbitrary scope name:
+
+```rust
+#[macro_use]
+extern crate loggy;
+
+loggy::in_named_scope("scope name", || {
+    /// Log messages generated here will be prefixed by the scope instead of the module name.
+    ...
+});
+```
+
+To provide user control over whether issues are errors or warnings:
 
 ```rust
 #[macro_use]
@@ -68,10 +80,10 @@ extern crate loggy;
 
 test_loggy!(test_name, {
     run_some_code();
-    assert_log("\
+    assert_log(r###"
 test: [<level>] <module>: <message>
 ...
-");
+"###);
 });
 
 ```

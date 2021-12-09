@@ -141,7 +141,17 @@ lazy_static! {
 
 thread_local!(
     static THREAD_ID: Cell<Option<usize>> = Cell::new(None);
+    static NAMED_SCOPE: Cell<Option<&'static str>> = Cell::new(None);
 );
+
+/// Execute some code in a named scope.
+///
+/// This scope will be used to identify log messages, instead of the default module name scope.
+pub fn in_named_scope<Code: FnOnce()>(name: &'static str, code: Code) {
+    let old_scope = NAMED_SCOPE.with(|named_scope| named_scope.replace(Some(name)));
+    code();
+    NAMED_SCOPE.with(|named_scope| named_scope.set(old_scope));
+}
 
 impl Loggy {
     fn format_message(&self, record: &Record) -> String {
@@ -205,7 +215,11 @@ impl Loggy {
             )
             .unwrap();
         } else {
-            write!(&mut message, " {}:", record.module_path().unwrap()).unwrap();
+            let scope = NAMED_SCOPE.with(|named_scope| match named_scope.get() {
+                None => record.module_path().unwrap(),
+                Some(scope) => scope,
+            });
+            write!(&mut message, " {}:", scope).unwrap();
         }
     }
 }

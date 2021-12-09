@@ -4,7 +4,7 @@ extern crate loggy;
 #[macro_use]
 extern crate log;
 
-use loggy::{assert_log, clear_log, ErrorsScope};
+use loggy::{assert_log, clear_log, in_named_scope, ErrorsScope};
 use std::thread;
 
 test_loggy!(error_should_be_captured, {
@@ -12,6 +12,15 @@ test_loggy!(error_should_be_captured, {
     assert_log(
         r#"
         test: [ERROR] test_log: error
+    "#,
+    );
+});
+
+test_loggy!(named_scope_should_replace_module, {
+    in_named_scope("scope", || error!("error"));
+    assert_log(
+        r#"
+        test: [ERROR] scope: error
     "#,
     );
 });
