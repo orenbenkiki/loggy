@@ -1,31 +1,45 @@
 #[macro_use]
 extern crate loggy;
 
-use loggy::{assert_logged, assert_panics, assert_writes, clear_log, count_errors, in_named_scope};
+use loggy::{
+    assert_logged, assert_logged_panics, assert_no_errors, assert_panics, assert_writes, clear_log,
+    count_errors, in_named_scope,
+};
 use std::thread;
 
-#[test]
-fn test_assert_writes() {
+test_no_loggy!(test_assert_panics {
+    assert_panics("test: [ERROR] test_log: foo\n", || panic!("foo"));
+});
+
+test_no_loggy!(test_assert_writes {
     assert_writes("foo", |writer| {
         writer.write("foo".as_bytes()).unwrap();
     });
-}
-
-test_loggy!(error_should_be_captured, {
-    error!("error");
-    assert_logged(
-        r#"
-        test: [ERROR] test_log: error
-    "#,
-    );
 });
 
-test_loggy!(panic_should_be_forced, {
+test_no_loggy!(assert_no_errors_should_detect_an_error {
+    assert_no_errors("foo", || {});
+    assert_logged_panics(
+        "test: [ERROR] test_log: error\n",
+        "test: [ERROR] loggy: 1 foo error(s)\n",
+        || {
+        assert_no_errors("foo", || {
+            error!("error");
+        });
+    });
+});
+
+test_loggy!(error_should_be_captured {
+    error!("error");
+    assert_logged("test: [ERROR] test_log: error\n");
+});
+
+test_loggy!(panic_should_be_forced {
     assert_panics("counting an uncountable error", || panic!("error"));
     clear_log();
 });
 
-test_loggy!(emit_structured_log_messages, {
+test_loggy!(emit_structured_log_messages {
     info!("simple");
     warn!("format {}", 0);
     error!("fields"; foo => 1, bar { baz => 2 });
@@ -46,7 +60,7 @@ test_loggy!(emit_structured_log_messages, {
     );
 });
 
-test_loggy!(named_scope_should_replace_module, {
+test_loggy!(named_scope_should_replace_module {
     in_named_scope("scope", || error!("error"));
     assert_logged(
         r#"
@@ -55,7 +69,7 @@ test_loggy!(named_scope_should_replace_module, {
     );
 });
 
-test_loggy!(multi_line_should_be_captured, {
+test_loggy!(multi_line_should_be_captured {
     error!("error\ncontinuation\nlines");
     assert_logged(
         r#"
@@ -66,7 +80,7 @@ test_loggy!(multi_line_should_be_captured, {
     );
 });
 
-test_loggy!(warning_should_be_captured, {
+test_loggy!(warning_should_be_captured {
     warn!("warning");
     assert_logged(
         r#"
@@ -75,7 +89,7 @@ test_loggy!(warning_should_be_captured, {
     );
 });
 
-test_loggy!(info_should_be_captured, {
+test_loggy!(info_should_be_captured {
     info!("information");
     assert_logged(
         r#"
@@ -84,12 +98,12 @@ test_loggy!(info_should_be_captured, {
     );
 });
 
-test_loggy!(debug_should_not_be_captured, {
+test_loggy!(debug_should_not_be_captured {
     debug!("debug");
     todox!("debug");
 });
 
-test_loggy!(notice_should_be_captured, {
+test_loggy!(notice_should_be_captured {
     note!(true, "error");
     note!(false, "warning");
     assert_logged(
@@ -104,14 +118,14 @@ mod foo {
     is_an_error!(false);
 }
 
-test_loggy!(notice_should_be_controlled, {
+test_loggy!(notice_should_be_controlled {
     assert!(!foo::is_an_error());
     assert!(!foo::set_is_an_error(true));
     assert!(foo::is_an_error());
     assert!(foo::set_is_an_error(false));
 });
 
-test_loggy!(worker_threads_should_be_reported, {
+test_loggy!(worker_threads_should_be_reported {
     info!("before");
     let child = thread::spawn(|| {
         info!("child");
@@ -127,7 +141,7 @@ test_loggy!(worker_threads_should_be_reported, {
     );
 });
 
-test_loggy!(errors_should_be_counted, {
+test_loggy!(errors_should_be_counted {
     assert_eq!(loggy::errors(), 0);
     error!("unscoped");
     assert_eq!(loggy::errors(), 1);
@@ -152,13 +166,23 @@ test_loggy!(errors_should_be_counted, {
     assert_eq!(loggy::errors(), 3);
 
     let child = thread::spawn(|| {
-        assert_eq!(loggy::errors(), 3);
-        error!("child");
-        assert_eq!(loggy::errors(), 4);
+        let errors_count = count_errors(|| {
+            assert_eq!(loggy::errors(), 3);
+            error!("child");
+            assert_eq!(loggy::errors(), 4);
+        });
+        assert_eq!(errors_count, 1);
     });
 
     child.join().unwrap();
     assert_eq!(loggy::errors(), 4);
 
-    clear_log();
+    assert_logged(
+        r###"
+        test: [ERROR] test_log: unscoped
+        test: [ERROR] test_log: inner
+        test: [ERROR] test_log: outer
+        test: [ERROR] test_log: child
+        "###
+    );
 });

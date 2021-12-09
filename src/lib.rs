@@ -14,6 +14,7 @@
 #![deny(clippy::nursery)]
 #![deny(clippy::cargo)]
 
+use crate as loggy;
 use lazy_static::lazy_static;
 use log::{Level, LevelFilter, Log, Metadata, Record};
 use std::cell::Cell;
@@ -38,15 +39,28 @@ use unindent::unindent;
 /// Note that here there's no way to control the final message format, which was chosen to target human readability.
 #[macro_export]
 macro_rules! log {
-    ( $level:expr , $format:literal $( , $( $value:expr )* )? $( ; $( $tail:tt )* )? ) => {
+    ( $level:expr , $format:literal $( ; $( $tail:tt )* )? ) => {
         {
-            if log::log_enabled!($level) {
-                let mut string = format!($format $( , $( $value )* )? );
+            if $level == log::Level::Error || log::log_enabled!($level) {
+                #[allow(unused_mut)]
+                let mut string = format!($format);
                 $(
                     let mut indent = "  ".to_owned();
                     log!( @collect string , indent , $( $tail )* );
-                    indent.pop();
-                    indent.pop();
+                )?
+                log::log!( $level , "{}" , string );
+            }
+        }
+    };
+
+    ( $level:expr , $format:literal $( , $value:expr )* $( ; $( $tail:tt )* )? ) => {
+        {
+            if $level == log::Level::Error || log::log_enabled!($level) {
+                #[allow(unused_mut)]
+                let mut string = format!($format $( , $value )* );
+                $(
+                    let mut indent = "  ".to_owned();
+                    log!( @collect string , indent , $( $tail )* );
                 )?
                 log::log!( $level , "{}" , string );
             }
@@ -98,7 +112,14 @@ macro_rules! error { ( $( $arg:tt )* ) => { loggy::log!( log::Level::Error , $( 
 ///
 /// This allows the compiler to know that any following code is unreachable (which isn't always the case for errors).
 #[macro_export]
-macro_rules! panic { ( $( $arg:tt )* ) => { { loggy::error!( $( $arg )* ); std::panic!("counting an uncountable error"); } } }
+macro_rules! panic {
+    ( $( $arg:tt )* ) => {
+        {
+            loggy::error!( $( $arg )* );
+            std::panic!("counting an uncountable error");
+        }
+    }
+}
 
 /// Log a warning message.
 ///
@@ -220,7 +241,9 @@ thread_local!(
 
 impl Log for Loggy {
     fn enabled(&self, metadata: &Metadata<'_>) -> bool {
-        metadata.level() == Level::Debug || metadata.level() <= log::max_level()
+        metadata.level() == Level::Error
+            || metadata.level() == Level::Debug
+            || metadata.level() <= log::max_level()
     }
 
     fn log(&self, record: &Record<'_>) {
@@ -231,7 +254,7 @@ impl Log for Loggy {
             });
         }
 
-        if self.enabled(record.metadata()) {
+        if record.level() == Level::Error || self.enabled(record.metadata()) {
             emit_message(record.level(), self.format_message(record).as_ref());
         }
     }
@@ -385,23 +408,23 @@ fn set_log_sink(log_sink: &LogSink) {
 /// # Panics
 ///
 /// If the actual log is different from the expected log.
-pub fn assert_logged(expected: &str) {
-    let expected = unindent(expected);
+pub fn assert_logged(expected_log: &str) {
     let mut log_buffer = LOG_BUFFER.lock().unwrap();
     match log_buffer.get_mut() {
         None => {
             std::panic!("asserting log when logging to stderr"); // NOT TESTED
         }
-        Some(actual) => {
-            if *actual != expected {
+        Some(actual_log) => {
+            let expected_log = fix_expected(expected_log);
+            if *actual_log != expected_log {
                 // BEGIN NOT TESTED
                 print!(
-                    "ACTUAL LOG:\n{}\nIS DIFFERENT FROM EXPECTED LOG:\n{}\n",
-                    actual, expected
+                    "ACTUAL LOG:\n>>>\n{}<<<\nIS DIFFERENT FROM EXPECTED LOG:\n>>>\n{}<<<\n",
+                    actual_log, expected_log
                 );
                 assert_eq!("ACTUAL LOG", "EXPECTED LOG");
             } // END NOT TESTED
-            actual.clear();
+            actual_log.clear();
         }
     }
 }
@@ -435,17 +458,14 @@ fn emit_message(level: Level, message: &str) {
         eprint!("{}", message);
         return;
     }
+
+    if level == Level::Error && !IS_COUNTING_ERRORS.with(std::cell::Cell::get) {
+        std::panic!("{}", message);
+    }
+
     let mut log_buffer = LOG_BUFFER.lock().unwrap();
     match log_buffer.get_mut() {
-        None => {
-            // BEGIN NOT TESTED
-            if IS_COUNTING_ERRORS.with(std::cell::Cell::get) {
-                eprint!("{}", message);
-            } else {
-                std::panic!("{}", message);
-            }
-            // END NOT TESTED
-        }
+        None => eprint!("{}", message), // NOT TESTED
         Some(buffer) => {
             if *MIRROR_TO_STDERR {
                 eprint!("{}", message); // NOT TESTED
@@ -480,20 +500,46 @@ static LOGGER_ONCE: Once = Once::new();
 /// context of the other log messages, to help in debugging.
 #[macro_export]
 macro_rules! test_loggy {
-    ( $( #[ $attr:meta ] )* $name:ident , $test:block ) => {
+    ( $( #[ $attr:meta ] )* $name:ident $test:block ) => {
         #[test]
         $( #[$attr] )*
         fn $name() {
-            loggy::before_test();
+            loggy::before_test(true);
             $test
             loggy::after_test();
         }
     };
 
-    ( $name:ident , $test:block ) => {
+    ( $name:ident $test:block ) => {
         #[test]
         fn $name() {
-            loggy::before_test();
+            loggy::before_test(true);
+            $test
+            loggy::after_test();
+        }
+    };
+}
+
+/// Create a test case using `loggy` which expects no logged messages.
+///
+/// This is similar to [`test_loggy`] except that it expects no logging, or `panic!` calls which can be caught by
+/// [`assert_panics`].
+#[macro_export]
+macro_rules! test_no_loggy {
+    ( $( #[ $attr:meta ] )* $name:ident $test:block ) => {
+        #[test]
+        $( #[$attr] )*
+        fn $name() {
+            loggy::before_test(false);
+            $test
+            loggy::after_test();
+        }
+    };
+
+    ( $name:ident $test:block ) => {
+        #[test]
+        fn $name() {
+            loggy::before_test(false);
             $test
             loggy::after_test();
         }
@@ -501,7 +547,7 @@ macro_rules! test_loggy {
 }
 
 #[doc(hidden)]
-pub fn before_test() {
+pub fn before_test(count_errors: bool) {
     LOGGER_ONCE.call_once(|| {
         log::set_logger(&Loggy {
             prefix: "test",
@@ -516,7 +562,7 @@ pub fn before_test() {
     TOTAL_ERRORS.store(0, std::sync::atomic::Ordering::Relaxed);
     THREAD_ID.with(|thread_id_cell| thread_id_cell.set(None));
     THREAD_ERRORS.with(|thread_errors_cell| thread_errors_cell.set(0));
-    IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.set(true));
+    IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.set(count_errors));
 
     set_log_sink(&LogSink::Buffer);
 }
@@ -542,22 +588,46 @@ pub fn after_test() {
 ///
 /// If the code does not panic, or panics with a different message than expected.
 pub fn assert_panics<Code: FnOnce() -> Result, Result>(expected_panic: &str, code: Code) {
+    do_assert_logged_panics(None, expected_panic, code);
+}
+
+/// Same as [`assert_panics`] but also assert that the log contained the specified entries at the point of the panic.
+pub fn assert_logged_panics<Code: FnOnce() -> Result, Result>(
+    expected_log: &str,
+    expected_panic: &str,
+    code: Code,
+) {
+    do_assert_logged_panics(Some(expected_log), expected_panic, code);
+}
+
+fn do_assert_logged_panics<Code: FnOnce() -> Result, Result>(
+    expected_log: Option<&str>,
+    expected_panic: &str,
+    code: Code,
+) {
     let prev_hook = take_hook();
     set_hook(Box::new(|_| {}));
     let result = catch_unwind(AssertUnwindSafe(code));
     set_hook(prev_hook);
+
+    if let Some(expected_log) = expected_log {
+        assert_logged(expected_log);
+    } else {
+        clear_log();
+    }
 
     match result {
         Ok(_) => std::panic!("test did not panic"), // NOT TESTED
 
         Err(error) => {
             let actual_panic = if let Some(actual_panic) = error.downcast_ref::<String>() {
-                actual_panic.as_str() // NOT TESTED
+                actual_panic.as_str()
             } else if let Some(actual_panic) = error.downcast_ref::<&'static str>() {
                 actual_panic
             } else {
                 "unknown panic" // NOT TESTED
             };
+            let expected_panic = fix_expected(expected_panic);
             assert_eq!(actual_panic, expected_panic);
         }
     }
@@ -574,9 +644,29 @@ pub fn assert_writes<Code: FnOnce(&mut dyn IoWrite)>(expected_string: &str, code
     let mut actual_bytes: Vec<u8> = vec![];
     code(&mut actual_bytes);
     let actual_string = String::from_utf8(actual_bytes).ok().unwrap();
-    let unindented_expected_string = unindent(expected_string);
-    let expected_string = unindented_expected_string
-        .strip_prefix('\n')
-        .unwrap_or(&unindented_expected_string);
-    assert_eq!(&actual_string, expected_string);
+    let expected_string = fix_expected(expected_string);
+    assert_eq!(actual_string, expected_string);
+}
+
+/// Assert that some code does not log any errors by counting them.
+///
+/// # Panics
+///
+/// If the code logs even one error.
+pub fn assert_no_errors<Code: FnOnce()>(name: &str, code: Code) {
+    let errors_count = count_errors(code);
+    if errors_count > 0 {
+        panic!("{} {} error(s)", errors_count, name);
+    }
+}
+
+fn fix_expected(expected: &str) -> String {
+    let needs_trailing_newline = expected.ends_with('\n') || expected.ends_with(' ');
+    let expected = unindent(expected);
+    let expected = expected.strip_prefix('\n').unwrap_or(&expected);
+    match (expected.ends_with('\n'), needs_trailing_newline) {
+        (true, false) => expected.strip_suffix('\n').unwrap().to_owned(), // NOT TESTED
+        (false, true) => format!("{}\n", expected),
+        _ => expected.to_owned(),
+    }
 }
