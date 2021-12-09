@@ -1,9 +1,6 @@
 // FILE NOT TESTED
 
 #[macro_use]
-extern crate log;
-
-#[macro_use]
 extern crate loggy;
 
 use log::LevelFilter;

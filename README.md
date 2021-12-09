@@ -3,7 +3,9 @@
 An opinionated library for developing and testing rust applications that use logging.
 
 This was initially inspired by [simple-logging](https://github.com/Ereski/simple-logging) implementation, with
-additional features focusing on development of applications (as opposed to libraries).
+additional features focusing on development of applications (as opposed to libraries). Structured messages were
+influenced by [slog](https://github.com/slog-rs/slog), but allow for nested structures and provide only a single format
+targeting human readability.
 
 ## Building and Testing
 
@@ -17,9 +19,6 @@ rust `log` facade mandating the use of a single global logger.
 The main program will need to set up the logger:
 
 ```rust
-extern crate loggy;
-extern crate log;
-
 log::set_logger(&Loggy {
     prefix: "...", // Typically, the name of the program.
     show_time: true, // Or false.
@@ -48,14 +47,14 @@ extern crate loggy;
 
 let is_issue_an_error = decide_based_on_command_line_arguments();
 if did_issue_occur() {
-    note!(is_issue_an_error, "issue occured: {}", issue_data());
+    note!(is_issue_an_error, "issue occured");
     provide_workaround();
 } else {
     proceed_normally();
 }
 ```
 
-To count the number of errors raised by some code:
+To count the number of errors raised by some code (normally `error!` causes a `panic!`):
 
 ```rust
 extern crate loggy;

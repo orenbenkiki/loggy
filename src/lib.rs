@@ -6,12 +6,15 @@
 
 //! An opinionated library for developing and testing rust applications that use logging.
 
-extern crate lazy_static;
-extern crate log;
-extern crate time;
-extern crate unindent;
+#![deny(warnings)]
+#![deny(rust_2018_idioms)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::perf)]
+#![deny(clippy::nursery)]
+#![deny(clippy::cargo)]
 
-use lazy_static::*;
+use lazy_static::lazy_static;
 use log::{Level, LevelFilter, Log, Metadata, Record};
 use std::cell::Cell;
 use std::fmt::Write;
@@ -20,41 +23,128 @@ use std::io::Write as IoWrite;
 use std::sync::{Mutex, Once};
 use unindent::unindent;
 
-/// Generate a debug log message.
+/// Log a structured message.
+///
+/// Usage: `log!(level, "some text {}", 1; field => value, label { sub_field => value }, ...)` results in
+/// a log message:
+/// ```yaml
+/// some text:
+///   field: value
+///   label:
+///     sub field: value
+/// ```
+///
+/// This is an extension of the [slog](https://github.com/slog-rs/slog) structured message format to support nesting.
+/// Note that here there's no way to control the final message format, which was chosen to target human readability.
+#[macro_export]
+macro_rules! log {
+    ( $level:expr , $format:literal $( , $( $value:expr )* )? $( ; $( $tail:tt )* )? ) => {
+        {
+            if log::log_enabled!($level) {
+                let mut string = format!($format $( , $( $value )* )? );
+                $(
+                    let mut indent = "  ".to_owned();
+                    log!( @collect string , indent , $( $tail )* );
+                    indent.pop();
+                    indent.pop();
+                )?
+                log::log!( $level , "{}" , string );
+            }
+        }
+    };
+
+    ( @collect $string:ident , $indent:ident , $name:ident $( , )? ) => {
+        $string.push_str(format!("\n{}{}: {}", $indent, stringify!($name), $name).as_str());
+    };
+
+    ( @collect $string:ident , $indent:ident , $name:ident , $( $tail:tt )* ) => {
+        log!( @collect $string , $indent , $name );
+        log!( @collect $string , $indent , $( $tail )* );
+    };
+
+    ( @collect $string:ident, $indent:ident , $name:ident => $value:expr $( , )? ) => {
+        $string.push_str(format!("\n{}{}: {}", $indent, stringify!($name), $value).as_str());
+    };
+
+    ( @collect $string:ident, $indent:ident , $name:ident => $value:expr , $( $tail:tt )* ) => {
+        log!( @collect $string , $indent , $name => $value );
+        log!( @collect $string , $indent , $( $tail )* );
+    };
+
+    ( @collect $string:ident , $indent:ident, $name:ident { $( $nest:tt )* } $( , )? ) => {
+        $string.push_str(format!("\n{}{}:", $indent, stringify!($name)).as_str());
+        $indent.push_str("  ");
+        log!( @collect $string , $indent , $( $nest )* );
+        $indent.pop();
+        $indent.pop();
+    };
+
+    ( @collect $string:ident , $indent:ident, $name:ident { $( $nest:tt )* } , $( $tail:tt )* ) => {
+        log!( @collect $string , $indent , $name { $( $nest )* } );
+        log!( @collect $string , $indent , $( $tail )* );
+    };
+}
+
+/// Log an error message.
+///
+/// This is identical to invoking `log!(log::Level::Error, ...)`.
+///
+/// Note that error messages are special. By default they are converted to a `panic!`, unless running inside a
+/// [`test_loggy!`] or inside [`count_errors`].
+#[macro_export]
+macro_rules! error { ( $( $arg:tt )* ) => { loggy::log!( log::Level::Error , $( $arg )* ) } }
+
+/// Log a warning message.
+///
+/// This is identical to invoking `log!(log::Level::Warn, ...)`.
+#[macro_export]
+macro_rules! warn { ( $( $arg:tt )* ) => { loggy::log!( log::Level::Warn , $( $arg )* )
+} }
+
+/// Log either an error or a warning, depending on some configuration parameter.
+///
+/// Invoking `note!(is_error, ...)` is identical to invoking `error!(...)` if `is_error` is `true`, or `warn!(...)` if
+/// `is_error` is `false`. This allows easily handling conditions whose handling depends on command line arguments or
+/// other considerations.
+#[macro_export]
+macro_rules! note {
+    ( $is_error:expr, $( $arg:tt )* ) => {
+        loggy::log!( if $is_error { log::Level::Error } else { log::Level::Warn } , $( $arg )* )
+    };
+}
+
+/// Log an informational message..
+///
+/// This is identical to invoking `log!(log::Level::Info, ...)`.
+#[macro_export]
+macro_rules! info { ( $( $arg:tt )* ) => { loggy::log!( log::Level::Info , $( $arg )* ) } }
+
+/// Log a debugging message..
+///
+/// This is identical to invoking `log!(log::Level::Debug, ...)`.
+///
+/// Debug messages are special. The are always emitted in debug builds, regardless of the requested log level. They are
+/// not captured by tests, and instead are always sent to the standard error. The idea being that debug messages are
+/// used for, well, debugging.
+#[macro_export]
+macro_rules! debug { ( $( $arg:tt )* ) => { loggy::log!( log::Level::Debug , $( $arg )* ) } }
+
+/// Log a debugging message..
 ///
 /// This is identical to invoking `debug!(...)`. Renaming it `todox!` ensures all uses will be reported by `cargo
 /// todox`, to ensure their removal once their usefulness is past.
-///
-/// `Level::Debug` messages are given special treatment by `loggy`. They are always emitted in tests generated by the
-/// `test_loggy!` macro. They are always directed to the standard error stream, and not captured in the log buffer, even
-/// in such tests.
 #[macro_export]
-macro_rules! todox {
-    (target: $target:expr, $($arg:tt)*) => (
-        debug!(target: $target, $($arg)*);
-    );
-    ($($arg:tt)*) => (
-        debug!($($arg)*);
-    )
-}
+macro_rules! todox { ( $( $arg:tt )* ) => { debug!( $( $arg )* ) } }
 
-/// Generate either an error or a warning, depending on some configuration parameter.
+/// Log a tracing message.
 ///
-/// Invoking `note!(is_error, ...)` is identical to invoking `error!` if `is_error` is `true`, or `warn!` if `is_error`
-/// is `false`. This allows easily handling conditions whose handling depends on command line arguments or other
-/// considerations.
+/// This is identical to invoking `log!(log::Level::Trace, ...)`.
+///
+/// This is originally meant for more-detailed-than-debugging messages, which doesn't really fit the model of "debug
+/// messages are used for actual debugging". It may be useful if you want debug-like (very detailed) messages that are
+/// not subject to the special handling of actual debug messages.
 #[macro_export]
-macro_rules! note {
-    ($is_error:expr, target: $target:expr, $($arg:tt)*) => (
-        log!(target: $target,
-             if $is_error { log::Level::Error } else { log::Level::Warn },
-             $($arg)*);
-    );
-    ($is_error:expr, $($arg:tt)*) => (
-        log!(if $is_error { log::Level::Error } else { log::Level::Warn },
-             $($arg)*);
-    )
-}
+macro_rules! trace { ( $( $arg:tt )* ) => { loggy::log!( log::Level::Trace , $( $arg )* ) } }
 
 /// Provide program-wide control over whether some note(s) are considered to be an error.
 ///
@@ -123,11 +213,11 @@ thread_local!(
 );
 
 impl Log for Loggy {
-    fn enabled(&self, metadata: &Metadata) -> bool {
+    fn enabled(&self, metadata: &Metadata<'_>) -> bool {
         metadata.level() == Level::Debug || metadata.level() <= log::max_level()
     }
 
-    fn log(&self, record: &Record) {
+    fn log(&self, record: &Record<'_>) {
         if record.level() == Level::Error {
             TOTAL_ERRORS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             THREAD_ERRORS.with(|thread_errors_cell| {
@@ -171,18 +261,18 @@ pub fn in_named_scope<Code: FnOnce()>(name: &'static str, code: Code) {
 pub fn count_errors<Code: FnOnce()>(code: Code) -> usize {
     let was_counting_before =
         IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.replace(true)); // APPEARS NOT TESTED
-    let errors_before = THREAD_ERRORS.with(|thread_errors_cell| thread_errors_cell.get());
+    let errors_before = THREAD_ERRORS.with(std::cell::Cell::get);
 
     code();
 
     IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.set(was_counting_before));
-    let errors_after = THREAD_ERRORS.with(|thread_errors_cell| thread_errors_cell.get());
+    let errors_after = THREAD_ERRORS.with(std::cell::Cell::get);
 
     errors_after - errors_before
 }
 
 impl Loggy {
-    fn format_message(&self, record: &Record) -> String {
+    fn format_message(&self, record: &Record<'_>) -> String {
         let now = if self.show_time {
             // BEGIN NOT TESTED
             time::OffsetDateTime::now_local()
@@ -210,7 +300,7 @@ impl Loggy {
         buffer
     }
 
-    fn append_prefix(&self, mut message: &mut String, now: &str, level: &str, record: &Record) {
+    fn append_prefix(&self, mut message: &mut String, now: &str, level: &str, record: &Record<'_>) {
         message.push_str(self.prefix);
 
         if self.show_thread {
@@ -285,6 +375,10 @@ fn set_log_sink(log_sink: &LogSink) {
 ///
 /// This is meant to be used in tests using the `test_loggy!` macro. Tests using this macro expect the log buffer being
 /// clear at the end of the test, either by using this function or `clear_log`.
+///
+/// # Panics
+///
+/// If the actual log is different from the expected log.
 pub fn assert_log(expected: &str) {
     let expected = unindent(expected);
     let mut log_buffer = LOG_BUFFER.lock().unwrap();
@@ -310,6 +404,10 @@ pub fn assert_log(expected: &str) {
 ///
 /// This is meant to be used in tests using the `test_loggy!` macro. Tests using this macro expect the log buffer being
 /// clear at the end of the test, either by using this function or `assert_log`.
+///
+/// # Panics
+///
+/// If no log is being collected.
 pub fn clear_log() {
     let mut log_buffer = LOG_BUFFER.lock().unwrap();
     match log_buffer.get_mut() {
@@ -335,7 +433,7 @@ fn emit_message(level: Level, message: &str) {
     match log_buffer.get_mut() {
         None => {
             // BEGIN NOT TESTED
-            if IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.get()) {
+            if IS_COUNTING_ERRORS.with(std::cell::Cell::get) {
                 eprint!("{}", message);
             } else {
                 panic!("{}", message);
@@ -396,7 +494,7 @@ pub fn before_test() {
             show_thread: false,
         })
         .unwrap();
-        log::set_max_level(LevelFilter::Debug);
+        log::set_max_level(LevelFilter::Trace);
     });
 
     TOTAL_THREADS.store(0, std::sync::atomic::Ordering::Relaxed);
@@ -418,7 +516,7 @@ pub fn after_test() {
 /// Return the total number of calls to `error!` in the whole program.
 ///
 /// This is reset for each test using the `test_loggy!` macro.
-#[allow(clippy::let_and_return)]
+#[must_use]
 pub fn errors() -> usize {
     TOTAL_ERRORS.load(std::sync::atomic::Ordering::Relaxed)
 }

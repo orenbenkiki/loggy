@@ -1,9 +1,6 @@
 #[macro_use]
 extern crate loggy;
 
-#[macro_use]
-extern crate log;
-
 use loggy::{assert_log, clear_log, count_errors, in_named_scope};
 use std::thread;
 
@@ -12,6 +9,27 @@ test_loggy!(error_should_be_captured, {
     assert_log(
         r#"
         test: [ERROR] test_log: error
+    "#,
+    );
+});
+
+test_loggy!(emit_structured_log_messages, {
+    info!("simple");
+    warn!("format {}", 0);
+    error!("fields"; foo => 1, bar { baz => 2 });
+    trace!("both {}", 0; foo => 1, bar { baz => 2 });
+    assert_log(
+        r#"
+        test: [INFO] test_log: simple
+        test: [WARN] test_log: format 0
+        test: [ERROR] test_log: fields
+        test: [error] test_log:   foo: 1
+        test: [error] test_log:   bar:
+        test: [error] test_log:     baz: 2
+        test: [TRACE] test_log: both 0
+        test: [trace] test_log:   foo: 1
+        test: [trace] test_log:   bar:
+        test: [trace] test_log:     baz: 2
     "#,
     );
 });
