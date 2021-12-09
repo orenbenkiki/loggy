@@ -1,16 +1,28 @@
 #[macro_use]
 extern crate loggy;
 
-use loggy::{assert_log, clear_log, count_errors, in_named_scope};
+use loggy::{assert_logged, assert_panics, assert_writes, clear_log, count_errors, in_named_scope};
 use std::thread;
+
+#[test]
+fn test_assert_writes() {
+    assert_writes("foo", |writer| {
+        writer.write("foo".as_bytes()).unwrap();
+    });
+}
 
 test_loggy!(error_should_be_captured, {
     error!("error");
-    assert_log(
+    assert_logged(
         r#"
         test: [ERROR] test_log: error
     "#,
     );
+});
+
+test_loggy!(panic_should_be_forced, {
+    assert_panics("counting an uncountable error", || panic!("error"));
+    clear_log();
 });
 
 test_loggy!(emit_structured_log_messages, {
@@ -18,7 +30,7 @@ test_loggy!(emit_structured_log_messages, {
     warn!("format {}", 0);
     error!("fields"; foo => 1, bar { baz => 2 });
     trace!("both {}", 0; foo => 1, bar { baz => 2 });
-    assert_log(
+    assert_logged(
         r#"
         test: [INFO] test_log: simple
         test: [WARN] test_log: format 0
@@ -36,7 +48,7 @@ test_loggy!(emit_structured_log_messages, {
 
 test_loggy!(named_scope_should_replace_module, {
     in_named_scope("scope", || error!("error"));
-    assert_log(
+    assert_logged(
         r#"
         test: [ERROR] scope: error
     "#,
@@ -45,7 +57,7 @@ test_loggy!(named_scope_should_replace_module, {
 
 test_loggy!(multi_line_should_be_captured, {
     error!("error\ncontinuation\nlines");
-    assert_log(
+    assert_logged(
         r#"
         test: [ERROR] test_log: error
         test: [error] test_log: continuation
@@ -56,7 +68,7 @@ test_loggy!(multi_line_should_be_captured, {
 
 test_loggy!(warning_should_be_captured, {
     warn!("warning");
-    assert_log(
+    assert_logged(
         r#"
         test: [WARN] test_log: warning
     "#,
@@ -65,7 +77,7 @@ test_loggy!(warning_should_be_captured, {
 
 test_loggy!(info_should_be_captured, {
     info!("information");
-    assert_log(
+    assert_logged(
         r#"
         test: [INFO] test_log: information
     "#,
@@ -80,7 +92,7 @@ test_loggy!(debug_should_not_be_captured, {
 test_loggy!(notice_should_be_captured, {
     note!(true, "error");
     note!(false, "warning");
-    assert_log(
+    assert_logged(
         r#"
         test: [ERROR] test_log: error
         test: [WARN] test_log: warning
@@ -106,7 +118,7 @@ test_loggy!(worker_threads_should_be_reported, {
     });
     child.join().unwrap();
     info!("after");
-    assert_log(
+    assert_logged(
         r#"
         test: [INFO] test_log: before
         test: [INFO] test_log: child

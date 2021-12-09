@@ -18,8 +18,8 @@ use lazy_static::lazy_static;
 use log::{Level, LevelFilter, Log, Metadata, Record};
 use std::cell::Cell;
 use std::fmt::Write;
-use std::io::stderr;
-use std::io::Write as IoWrite;
+use std::io::{stderr, Write as IoWrite};
+use std::panic::{catch_unwind, set_hook, take_hook, AssertUnwindSafe};
 use std::sync::{Mutex, Once};
 use unindent::unindent;
 
@@ -85,14 +85,20 @@ macro_rules! log {
     };
 }
 
-/// Log an error message.
+/// Log a countable error message.
 ///
 /// This is identical to invoking `log!(log::Level::Error, ...)`.
 ///
-/// Note that error messages are special. By default they are converted to a `panic!`, unless running inside a
+/// Note that error messages are special. By default they are converted to a `std::panic!`, unless running inside a
 /// [`test_loggy!`] or inside [`count_errors`].
 #[macro_export]
 macro_rules! error { ( $( $arg:tt )* ) => { loggy::log!( log::Level::Error , $( $arg )* ) } }
+
+/// Log an error message when it is known we are not counting errors.
+///
+/// This allows the compiler to know that any following code is unreachable (which isn't always the case for errors).
+#[macro_export]
+macro_rules! panic { ( $( $arg:tt )* ) => { { loggy::error!( $( $arg )* ); std::panic!("counting an uncountable error"); } } }
 
 /// Log a warning message.
 ///
@@ -134,7 +140,7 @@ macro_rules! debug { ( $( $arg:tt )* ) => { loggy::log!( log::Level::Debug , $( 
 /// This is identical to invoking `debug!(...)`. Renaming it `todox!` ensures all uses will be reported by `cargo
 /// todox`, to ensure their removal once their usefulness is past.
 #[macro_export]
-macro_rules! todox { ( $( $arg:tt )* ) => { debug!( $( $arg )* ) } }
+macro_rules! todox { ( $( $arg:tt )* ) => { loggy::debug!( $( $arg )* ) } }
 
 /// Log a tracing message.
 ///
@@ -252,9 +258,9 @@ pub fn in_named_scope<Code: FnOnce()>(name: &'static str, code: Code) {
 /// Execute some code, while counting the errors.
 ///
 /// Returns the number of errors reported by the `code`. These errors are also added to any containing scope. By
-/// default, unless running in a test, error (formatted) messages are passed to `panic!`. This is disabled when counting
-/// errors, allowing the code to emit multiple such messages. It is the caller's responsibility to examine the number of
-/// errors and do a final `panic!`, or otherwise handle the situation.
+/// default, unless running in a test, error (formatted) messages are passed to `std::panic!`. This is disabled when
+/// counting errors, allowing the code to emit multiple such messages. It is the caller's responsibility to examine the
+/// number of errors and do a final `panic!`, or otherwise handle the situation.
 ///
 /// Note this only counts error messages generated in the current thread.
 #[must_use]
@@ -379,12 +385,12 @@ fn set_log_sink(log_sink: &LogSink) {
 /// # Panics
 ///
 /// If the actual log is different from the expected log.
-pub fn assert_log(expected: &str) {
+pub fn assert_logged(expected: &str) {
     let expected = unindent(expected);
     let mut log_buffer = LOG_BUFFER.lock().unwrap();
     match log_buffer.get_mut() {
         None => {
-            panic!("asserting log when logging to stderr"); // NOT TESTED
+            std::panic!("asserting log when logging to stderr"); // NOT TESTED
         }
         Some(actual) => {
             if *actual != expected {
@@ -403,7 +409,7 @@ pub fn assert_log(expected: &str) {
 /// Clear the log buffer following the comparison.
 ///
 /// This is meant to be used in tests using the `test_loggy!` macro. Tests using this macro expect the log buffer being
-/// clear at the end of the test, either by using this function or `assert_log`.
+/// clear at the end of the test, either by using this function or [`assert_logged`].
 ///
 /// # Panics
 ///
@@ -411,7 +417,7 @@ pub fn assert_log(expected: &str) {
 pub fn clear_log() {
     let mut log_buffer = LOG_BUFFER.lock().unwrap();
     match log_buffer.get_mut() {
-        None => panic!("clearing log when logging to stderr"), // NOT TESTED
+        None => std::panic!("clearing log when logging to stderr"), // NOT TESTED
         Some(buffer) => buffer.clear(),
     }
 }
@@ -436,7 +442,7 @@ fn emit_message(level: Level, message: &str) {
             if IS_COUNTING_ERRORS.with(std::cell::Cell::get) {
                 eprint!("{}", message);
             } else {
-                panic!("{}", message);
+                std::panic!("{}", message);
             }
             // END NOT TESTED
         }
@@ -449,14 +455,22 @@ fn emit_message(level: Level, message: &str) {
     }
 }
 
+/// Return the total number of calls to `error!` in the whole program.
+///
+/// This is reset for each test using the `test_loggy!` macro.
+#[must_use]
+pub fn errors() -> usize {
+    TOTAL_ERRORS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 static LOGGER_ONCE: Once = Once::new();
 
 /// Create a test case using `loggy`.
 ///
 /// `test_loggy!(name, { ... });` creates a test case which captures all log messages (except for `Level::Debug`
-/// messages). It is expected to use either `assert_log` or `clear_log` to clear the buffered log before the test ends.
-/// It is possible to provide additional attributes in addition to `#[test]` by specifying them before the name, as in
-/// `test_loggy!(#[cfg(debug_assertions)], name, { ... });`
+/// messages). It is expected to use either [`assert_logged`] or [`clear_log`] to clear the buffered log before the test
+/// ends. It is possible to provide additional attributes in addition to `#[test]` by specifying them before the name,
+/// as in `test_loggy!(#[cfg(debug_assertions)], name, { ... });`
 ///
 /// Since `loggy` collects messages from all threads, `test_loggy!` tests must be run with `RUST_TEST_THREADS=1`,
 /// otherwise "bad things will happen". However, such tests may freely spawn multiple new threads.
@@ -466,7 +480,7 @@ static LOGGER_ONCE: Once = Once::new();
 /// context of the other log messages, to help in debugging.
 #[macro_export]
 macro_rules! test_loggy {
-    ($(#[$attr:meta])*, $name:ident, $test:block) => {
+    ( $( #[ $attr:meta ] )* $name:ident , $test:block ) => {
         #[test]
         $( #[$attr] )*
         fn $name() {
@@ -475,7 +489,8 @@ macro_rules! test_loggy {
             loggy::after_test();
         }
     };
-    ($name:ident, $test:block) => {
+
+    ( $name:ident , $test:block ) => {
         #[test]
         fn $name() {
             loggy::before_test();
@@ -508,15 +523,60 @@ pub fn before_test() {
 
 #[doc(hidden)]
 pub fn after_test() {
-    assert_log("");
+    assert_logged("");
     set_log_sink(&LogSink::Stderr);
     IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.set(false));
 }
 
-/// Return the total number of calls to `error!` in the whole program.
+/// Ensure that executing some code will panic with a specific error message.
 ///
-/// This is reset for each test using the `test_loggy!` macro.
-#[must_use]
-pub fn errors() -> usize {
-    TOTAL_ERRORS.load(std::sync::atomic::Ordering::Relaxed)
+/// TODO: This isn't really the best place for this, but it is necessary to capture tests that `panic!`.
+///
+/// Unlike `#[should_panic(expected = "...")]`, this:
+/// * Allows isolating a specific part of the test instead of decorating a whole test;
+/// * Does not pollute stderr with the panic indication and back trace;
+/// * Allows the caller to dynamically generate the expected panic message;
+/// * Insists on the exact panic string rather than just a sub-string if it.
+///
+/// # Panics
+///
+/// If the code does not panic, or panics with a different message than expected.
+pub fn assert_panics<Code: FnOnce() -> Result, Result>(expected_panic: &str, code: Code) {
+    let prev_hook = take_hook();
+    set_hook(Box::new(|_| {}));
+    let result = catch_unwind(AssertUnwindSafe(code));
+    set_hook(prev_hook);
+
+    match result {
+        Ok(_) => std::panic!("test did not panic"), // NOT TESTED
+
+        Err(error) => {
+            let actual_panic = if let Some(actual_panic) = error.downcast_ref::<String>() {
+                actual_panic.as_str() // NOT TESTED
+            } else if let Some(actual_panic) = error.downcast_ref::<&'static str>() {
+                actual_panic
+            } else {
+                "unknown panic" // NOT TESTED
+            };
+            assert_eq!(actual_panic, expected_panic);
+        }
+    }
+}
+
+/// Check that some code writes the expected results.
+///
+/// TODO: This isn't really the best place for this.
+///
+/// # Panics
+///
+/// If the code does not write the expected text.
+pub fn assert_writes<Code: FnOnce(&mut dyn IoWrite)>(expected_string: &str, code: Code) {
+    let mut actual_bytes: Vec<u8> = vec![];
+    code(&mut actual_bytes);
+    let actual_string = String::from_utf8(actual_bytes).ok().unwrap();
+    let unindented_expected_string = unindent(expected_string);
+    let expected_string = unindented_expected_string
+        .strip_prefix('\n')
+        .unwrap_or(&unindented_expected_string);
+    assert_eq!(&actual_string, expected_string);
 }
