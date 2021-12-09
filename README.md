@@ -2,8 +2,8 @@
 
 An opinionated library for developing and testing rust applications that use logging.
 
-This is inspired by [simple-logging](https://github.com/Ereski/simple-logging) implementation, with additional features
-focusing on development of applications (as opposed to libraries).
+This was initially inspired by [simple-logging](https://github.com/Ereski/simple-logging) implementation, with
+additional features focusing on development of applications (as opposed to libraries).
 
 ## Building and Testing
 
@@ -23,6 +23,7 @@ extern crate log;
 log::set_logger(&Loggy {
     prefix: "...", // Typically, the name of the program.
     show_time: true, // Or false.
+    show_thread: true, // Or false.
 }).unwrap();
 log::set_max_level(log::LevelFilter::Info); // Or whatever level you want.
 ```
@@ -92,8 +93,8 @@ implementation and features were designed to support a specific development work
 ## Features
 
 As an implementation of the log facade, this library is pretty basic and standard. Messages are emitted to the standard
-error stream. The message format is `<prefix>[<thread>]: <time> [<level]>] <module/scope>: <message>`, where the time
-and the thread may be omitted.
+error stream. The message format is `<prefix>[<thread>]: <time> [<level]>] <module/scope>: <message>`, where the thread
+and time may be omitted.
 
 Additional features reflect the library's opinionated nature:
 
@@ -104,8 +105,7 @@ Additional features reflect the library's opinionated nature:
   stamp, if included, will be identical for all these lines. This makes log messages easily `grep`-able, countable, etc.
 
 * It is assumed that either the program is single-threaded, or, if multi-threaded, then the main thread spawns off
-  worker threads slaved to the main one, to perform transient tasks. Therefore, the thread index is only reported for
-  log messages generated from the worker threads, and is optional.
+  worker threads slaved to the main one, to perform transient tasks.
 
 * By default log messages are annotated with the name of the module generating them, but it is possible to override this
   and specify an explicit scope name instead to better isolate specific processing stages and/or tasks.

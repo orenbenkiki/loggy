@@ -13,6 +13,7 @@ fn main() {
     log::set_logger(&Loggy {
         prefix: "example",
         show_time: true,
+        show_thread: true,
     })
     .unwrap();
     log::set_max_level(LevelFilter::Warn);

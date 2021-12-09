@@ -91,7 +91,7 @@ test_loggy!(worker_threads_should_be_reported, {
     assert_log(
         r#"
         test: [INFO] test_log: before
-        test[1]: [INFO] test_log: child
+        test: [INFO] test_log: child
         test: [INFO] test_log: after
     "#,
     );
