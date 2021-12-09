@@ -119,6 +119,7 @@ thread_local!(
     static THREAD_ID: Cell<Option<usize>> = Cell::new(None);
     static NAMED_SCOPE: Cell<Option<&'static str>> = Cell::new(None);
     static THREAD_ERRORS: Cell<usize> = Cell::new(0);
+    static IS_COUNTING_ERRORS: Cell<bool> = Cell::new(false);
 );
 
 impl Log for Loggy {
@@ -160,13 +161,23 @@ pub fn in_named_scope<Code: FnOnce()>(name: &'static str, code: Code) {
 
 /// Execute some code, while counting the errors.
 ///
-/// Returns the number of errors reported by the `code`. These errors are also added to any containing scope.
+/// Returns the number of errors reported by the `code`. These errors are also added to any containing scope. By
+/// default, unless running in a test, error (formatted) messages are passed to `panic!`. This is disabled when counting
+/// errors, allowing the code to emit multiple such messages. It is the caller's responsibility to examine the number of
+/// errors and do a final `panic!`, or otherwise handle the situation.
 ///
 /// Note this only counts error messages generated in the current thread.
+#[must_use]
 pub fn count_errors<Code: FnOnce()>(code: Code) -> usize {
+    let was_counting_before =
+        IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.replace(true)); // APPEARS NOT TESTED
     let errors_before = THREAD_ERRORS.with(|thread_errors_cell| thread_errors_cell.get());
+
     code();
+
+    IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.set(was_counting_before));
     let errors_after = THREAD_ERRORS.with(|thread_errors_cell| thread_errors_cell.get());
+
     errors_after - errors_before
 }
 
@@ -323,7 +334,13 @@ fn emit_message(level: Level, message: &str) {
     let mut log_buffer = LOG_BUFFER.lock().unwrap();
     match log_buffer.get_mut() {
         None => {
-            eprint!("{}", message); // NOT TESTED
+            // BEGIN NOT TESTED
+            if IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.get()) {
+                eprint!("{}", message);
+            } else {
+                panic!("{}", message);
+            }
+            // END NOT TESTED
         }
         Some(buffer) => {
             if *MIRROR_TO_STDERR {
@@ -384,14 +401,9 @@ pub fn before_test() {
 
     TOTAL_THREADS.store(0, std::sync::atomic::Ordering::Relaxed);
     TOTAL_ERRORS.store(0, std::sync::atomic::Ordering::Relaxed);
-
-    THREAD_ID.with(|thread_id_cell| {
-        thread_id_cell.set(None);
-    });
-
-    THREAD_ERRORS.with(|thread_errors_cell| {
-        thread_errors_cell.set(0);
-    });
+    THREAD_ID.with(|thread_id_cell| thread_id_cell.set(None));
+    THREAD_ERRORS.with(|thread_errors_cell| thread_errors_cell.set(0));
+    IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.set(true));
 
     set_log_sink(&LogSink::Buffer);
 }
@@ -400,6 +412,7 @@ pub fn before_test() {
 pub fn after_test() {
     assert_log("");
     set_log_sink(&LogSink::Stderr);
+    IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.set(false));
 }
 
 /// Return the total number of calls to `error!` in the whole program.
