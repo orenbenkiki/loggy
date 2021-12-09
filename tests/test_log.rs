@@ -4,7 +4,7 @@ extern crate loggy;
 #[macro_use]
 extern crate log;
 
-use loggy::{assert_log, clear_log, in_named_scope, ErrorsScope};
+use loggy::{assert_log, clear_log, count_errors, in_named_scope};
 use std::thread;
 
 test_loggy!(error_should_be_captured, {
@@ -98,40 +98,37 @@ test_loggy!(worker_threads_should_be_reported, {
 });
 
 test_loggy!(errors_should_be_counted, {
-    let outer_scope = ErrorsScope::new();
-
     assert_eq!(loggy::errors(), 0);
-    assert!(!loggy::had_errors());
-
-    assert_eq!(outer_scope.errors(), 0);
-    assert!(!outer_scope.had_errors());
-
-    error!("outer");
-
+    error!("unscoped");
     assert_eq!(loggy::errors(), 1);
-    assert!(loggy::had_errors());
 
-    assert_eq!(outer_scope.errors(), 1);
-    assert!(outer_scope.had_errors());
+    let outer_errors = count_errors(|| {
+        assert_eq!(loggy::errors(), 1);
+
+        let inner_errors = count_errors(|| {
+            assert_eq!(loggy::errors(), 1);
+            error!("inner");
+            assert_eq!(loggy::errors(), 2);
+        });
+
+        assert_eq!(inner_errors, 1);
+        assert_eq!(loggy::errors(), 2);
+
+        error!("outer");
+        assert_eq!(loggy::errors(), 3);
+    });
+
+    assert_eq!(outer_errors, 2);
+    assert_eq!(loggy::errors(), 3);
 
     let child = thread::spawn(|| {
-        let inner_scope = ErrorsScope::new();
-
-        assert_eq!(inner_scope.errors(), 0);
-        assert!(!inner_scope.had_errors());
-
-        error!("inner");
-
-        assert_eq!(inner_scope.errors(), 1);
-        assert!(inner_scope.had_errors());
+        assert_eq!(loggy::errors(), 3);
+        error!("child");
+        assert_eq!(loggy::errors(), 4);
     });
+
     child.join().unwrap();
-
-    assert_eq!(loggy::errors(), 2);
-    assert!(loggy::had_errors());
-
-    assert_eq!(outer_scope.errors(), 1);
-    assert!(outer_scope.had_errors());
+    assert_eq!(loggy::errors(), 4);
 
     clear_log();
 });
