@@ -23,29 +23,27 @@ help:
 TAGS: $(RS_SOURCES)  ## TAGS file for vim or Emacs.
 	rust-ctags .
 
-BUILD_FLAGS = RUSTFLAGS="-C link-dead-code"
-
 TEST_FLAGS = RUST_TEST_THREADS=1 RUST_BACKTRACE=1
 
 retest:  ## force re-run tests
-	$(BUILD_FLAGS) $(TEST_FLAGS) cargo test -- --nocapture
+	$(TEST_FLAGS) ./with_configuration.sh base cargo test -- --nocapture
 
 test: .make.test  ## run tests
 
 .make.test: $(CARGO_SOURCES)
-	$(BUILD_FLAGS) $(TEST_FLAGS) cargo test -- --nocapture
+	$(TEST_FLAGS) ./with_configuration.sh base cargo test -- --nocapture
 	touch $@
 
 check: .make.check  ## check the sources
 
 .make.check: $(CARGO_SOURCES)
-	$(BUILD_FLAGS) cargo check --tests
+	./with_configuration.sh check cargo check --tests
 	touch $@
 
 build: .make.build  ## build the binaries
 
 .make.build: $(CARGO_SOURCES)
-	$(BUILD_FLAGS) cargo test --no-run
+	./with_configuration.sh base cargo test --no-run
 	touch $@
 
 pc: fmt staged clippy test coverage-annotations doc outdated audit  ## check everything before commit
@@ -76,19 +74,19 @@ outdated: .make.outdated  ## check all dependencies are up-to-date
 clippy: .make.clippy  ## check for code smells with clippy
 	
 .make.clippy: .make.check
-	$(BUILD_FLAGS) cargo clippy -- --no-deps
+	./with_configuration.sh check cargo clippy -- --no-deps
 	touch $@
 
 doc: .make.doc  ## generate documentation
 	
 .make.doc: $(ALL_SOURCES)
-	cargo doc --no-deps # --workspace
+	./with_configuration.sh base cargo doc --no-deps
 	touch $@
 
 coverage: .make.coverage  ## generate coverage report
 
 .make.coverage: $(CARGO_SOURCES)
-	$(BUILD_FLAGS) $(TEST_FLAGS) cargo tarpaulin --out Xml
+	$(TEST_FLAGS) ./with_configuration.sh tarpaulin cargo tarpaulin --out Xml
 	touch $@
 
 coverage-annotations: .make.coverage-annotations  ## check coverage annotations in code
@@ -104,5 +102,10 @@ audit: .make.audit  ## audit dependencies for bugs or security issues
 	touch $@
 
 clean:  ## remove all build, test, coverage and Python artifacts
-	rm -rf .make.*
-	rm -rf target
+	rm -f .make.*
+
+pp: pc  ## pre-publish check
+	./with_configuration.sh publish cargo publish --dry-run
+
+publish: pp  ## actually publish
+	./with_configuration.sh publish cargo publish

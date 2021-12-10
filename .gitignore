@@ -7,4 +7,6 @@ Makefile.scmf.toml
 .*.sw*
 tags
 TAGS
-/target/
+.target.*
+target
+tarpaulin-*
