@@ -1,3 +1,4 @@
+.cargo
 cobertura.xml
 /docs/
 *junk*
@@ -7,6 +8,5 @@ Makefile.scmf.toml
 .*.sw*
 tags
 TAGS
-.target.*
 target
 tarpaulin-*
