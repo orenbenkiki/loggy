@@ -66,6 +66,7 @@ coverage: .make.coverage  ## generate coverage report
 
 .make.coverage: .make.test # $(CARGO_SOURCES)
 	mv .cargo/config.toml .cargo/_config.toml
+	rm -f tarpaulin*
 	$(TEST_FLAGS) cargo tarpaulin --skip-clean --out Xml
 	mv .cargo/_config.toml .cargo/config.toml
 	touch $@
@@ -114,9 +115,13 @@ publish: ci  ## actually publish
 tags: $(RS_SOURCES)  ## tags file for vim or Emacs.
 	ctags --recurse .
 
-clean:  ## remove all generated files
+clobber:  ## remove all generated files
 	rm -f .make.* tags
 	rm -rf .cargo target
+
+clean:  ## remove generated files except for dependencies
+	rm -f .make.* tags tarpaulin*
+	rm -rf .cargo `find target -name '*clacks*'`
 
 .cargo/config.toml:
 	mkdir -p .cargo

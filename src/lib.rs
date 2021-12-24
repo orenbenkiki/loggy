@@ -18,6 +18,8 @@
 #![deny(clippy::nursery)]
 #![deny(clippy::cargo)]
 
+pub use loggy_macros::loggy;
+
 use crate as loggy;
 use lazy_static::lazy_static;
 use log::{Level, LevelFilter, Log, Metadata, Record};
@@ -108,7 +110,7 @@ macro_rules! log {
 /// This is identical to invoking `log!(log::Level::Error, ...)`.
 ///
 /// Note that error messages are special. By default they are converted to a `std::panic!`, unless running inside a
-/// [`test_loggy!`] or inside [`count_errors`].
+/// `[#loggy]` test or inside [`count_errors`].
 #[macro_export]
 macro_rules! error { ( $( $arg:tt )* ) => { loggy::log!( log::Level::Error , $( $arg )* ) } }
 
@@ -406,8 +408,8 @@ fn set_log_sink(log_sink: &LogSink) {
 ///
 /// This clears the log buffer following the comparison.
 ///
-/// This is meant to be used in tests using the `test_loggy!` macro. Tests using this macro expect the log buffer being
-/// clear at the end of the test, either by using this function or `clear_log`.
+/// This is meant to be used in tests using the `[#loggy]` macro. Tests using this macro expect the log buffer being
+/// clear at the end of the test, either by using this function or `ignore_log`.
 ///
 /// # Panics
 ///
@@ -433,15 +435,15 @@ pub fn assert_logged(expected_log: &str) {
     }
 }
 
-/// Clear the log buffer following the comparison.
+/// Ignore (clear) the content of the captured log.
 ///
-/// This is meant to be used in tests using the `test_loggy!` macro. Tests using this macro expect the log buffer being
-/// clear at the end of the test, either by using this function or [`assert_logged`].
+/// This is meant to be used in tests using the `[#loggy]` macro, if they do not otherwise consume the captured log
+/// (e.g. by calling [`assert_logged`]).
 ///
 /// # Panics
 ///
 /// If no log is being collected.
-pub fn clear_log() {
+pub fn ignore_log() {
     let mut log_buffer = LOG_BUFFER.lock();
     match log_buffer.get_mut() {
         None => std::panic!("clearing log when logging to stderr"), // NOT TESTED
@@ -481,7 +483,7 @@ fn emit_message(level: Level, message: &str) {
 
 /// Return the total number of calls to `error!` in the whole program.
 ///
-/// This is reset for each test using the `test_loggy!` macro.
+/// This is reset for each test using the `[#loggy]` macro.
 #[must_use]
 pub fn errors() -> usize {
     TOTAL_ERRORS.load(std::sync::atomic::Ordering::Relaxed)
@@ -489,69 +491,8 @@ pub fn errors() -> usize {
 
 static LOGGER_ONCE: Once = Once::new();
 
-/// Create a test case using `loggy`.
-///
-/// `test_loggy!(name, { ... });` creates a test case which captures all log messages (except for `Level::Debug`
-/// messages). It is expected to use either [`assert_logged`] or [`clear_log`] to clear the buffered log before the test
-/// ends. It is possible to provide additional attributes in addition to `#[test]` by specifying them before the name,
-/// as in `test_loggy!(#[cfg(debug_assertions)], name, { ... });`
-///
-/// Since `loggy` collects messages from all threads, `test_loggy!` tests must be run with `RUST_TEST_THREADS=1`,
-/// otherwise "bad things will happen". However, such tests may freely spawn multiple new threads.
-///
-/// If the environment variable `LOGGY_MIRROR_TO_STDERR` is set to any non empty value, then all log messages will be
-/// mirrored to the standard error stream, in addition to being captured. This places the `Level::Debug` messages in the
-/// context of the other log messages, to help in debugging.
-#[macro_export]
-macro_rules! test_loggy {
-    ( $( #[ $attr:meta ] )* $name:ident $test:block ) => {
-        #[test]
-        $( #[$attr] )*
-        fn $name() {
-            loggy::before_test(true);
-            $test
-            loggy::after_test();
-        }
-    };
-
-    ( $name:ident $test:block ) => {
-        #[test]
-        fn $name() {
-            loggy::before_test(true);
-            $test
-            loggy::after_test();
-        }
-    };
-}
-
-/// Create a test case using `loggy` which expects no logged messages.
-///
-/// This is similar to [`test_loggy`] except that it expects no logging, or `panic!` calls which can be caught by
-/// [`assert_panics`].
-#[macro_export]
-macro_rules! test_no_loggy {
-    ( $( #[ $attr:meta ] )* $name:ident $test:block ) => {
-        #[test]
-        $( #[$attr] )*
-        fn $name() {
-            loggy::before_test(false);
-            $test
-            loggy::after_test();
-        }
-    };
-
-    ( $name:ident $test:block ) => {
-        #[test]
-        fn $name() {
-            loggy::before_test(false);
-            $test
-            loggy::after_test();
-        }
-    };
-}
-
 #[doc(hidden)]
-pub fn before_test(count_errors: bool) {
+pub fn before_test() {
     LOGGER_ONCE.call_once(|| {
         log::set_logger(&Loggy {
             prefix: "test",
@@ -566,7 +507,7 @@ pub fn before_test(count_errors: bool) {
     TOTAL_ERRORS.store(0, std::sync::atomic::Ordering::Relaxed);
     THREAD_ID.with(|thread_id_cell| thread_id_cell.set(None));
     THREAD_ERRORS.with(|thread_errors_cell| thread_errors_cell.set(0));
-    IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.set(count_errors));
+    IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.set(true));
 
     set_log_sink(&LogSink::Buffer);
 }
@@ -578,7 +519,7 @@ pub fn after_test() {
     IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.set(false));
 }
 
-/// Ensure that executing some code will panic with a specific error message.
+/// Ensure that executing some code will panic with a specific error message (ignoring and clearing the log).
 ///
 /// TODO: This isn't really the best place for this, but it is necessary to capture tests that `panic!`.
 ///
@@ -611,13 +552,17 @@ fn do_assert_logged_panics<Code: FnOnce() -> Result, Result>(
 ) {
     let prev_hook = take_hook();
     set_hook(Box::new(|_| {}));
+
+    let was_counting_before =
+        IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.replace(false)); // APPEARS NOT TESTED
     let result = catch_unwind(AssertUnwindSafe(code));
+    IS_COUNTING_ERRORS.with(|is_counting_errors| is_counting_errors.set(was_counting_before));
     set_hook(prev_hook);
 
     if let Some(expected_log) = expected_log {
         assert_logged(expected_log);
     } else {
-        clear_log();
+        ignore_log();
     }
 
     match result {
@@ -626,8 +571,10 @@ fn do_assert_logged_panics<Code: FnOnce() -> Result, Result>(
         Err(error) => {
             let actual_panic = if let Some(actual_panic) = error.downcast_ref::<String>() {
                 actual_panic.as_str()
+            // BEGIN NOT TESTED
             } else if let Some(actual_panic) = error.downcast_ref::<&'static str>() {
                 actual_panic
+            // END NOT TESTED
             } else {
                 "unknown panic" // NOT TESTED
             };
