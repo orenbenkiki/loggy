@@ -4,6 +4,10 @@
 // Licensed under the MIT license <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your option. This file may not
 // be copied, modified, or distributed except according to those terms.
 
+// TODO test_no_loggy?
+// TODO: proc macros
+// TODO: check debug vs. trace
+
 //! An opinionated library for developing and testing rust applications that use logging.
 
 #![deny(warnings)]
@@ -17,11 +21,11 @@
 use crate as loggy;
 use lazy_static::lazy_static;
 use log::{Level, LevelFilter, Log, Metadata, Record};
+use parking_lot::{Mutex, Once};
 use std::cell::Cell;
 use std::fmt::Write;
 use std::io::{stderr, Write as IoWrite};
 use std::panic::{catch_unwind, set_hook, take_hook, AssertUnwindSafe};
-use std::sync::{Mutex, Once};
 use unindent::unindent;
 
 /// Log a structured message.
@@ -387,10 +391,10 @@ lazy_static! {
 fn set_log_sink(log_sink: &LogSink) {
     match log_sink {
         LogSink::Stderr => {
-            LOG_BUFFER.lock().unwrap().set(None);
+            LOG_BUFFER.lock().set(None);
         }
         LogSink::Buffer => {
-            LOG_BUFFER.lock().unwrap().set(Some(String::new()));
+            LOG_BUFFER.lock().set(Some(String::new()));
         }
     };
 }
@@ -409,7 +413,7 @@ fn set_log_sink(log_sink: &LogSink) {
 ///
 /// If the actual log is different from the expected log.
 pub fn assert_logged(expected_log: &str) {
-    let mut log_buffer = LOG_BUFFER.lock().unwrap();
+    let mut log_buffer = LOG_BUFFER.lock();
     match log_buffer.get_mut() {
         None => {
             std::panic!("asserting log when logging to stderr"); // NOT TESTED
@@ -438,10 +442,10 @@ pub fn assert_logged(expected_log: &str) {
 ///
 /// If no log is being collected.
 pub fn clear_log() {
-    let mut log_buffer = LOG_BUFFER.lock().unwrap();
+    let mut log_buffer = LOG_BUFFER.lock();
     match log_buffer.get_mut() {
         None => std::panic!("clearing log when logging to stderr"), // NOT TESTED
-        Some(buffer) => buffer.clear(),
+        Some(ref mut buffer) => buffer.clear(),
     }
 }
 
@@ -463,7 +467,7 @@ fn emit_message(level: Level, message: &str) {
         std::panic!("{}", message);
     }
 
-    let mut log_buffer = LOG_BUFFER.lock().unwrap();
+    let mut log_buffer = LOG_BUFFER.lock();
     match log_buffer.get_mut() {
         None => eprint!("{}", message), // NOT TESTED
         Some(buffer) => {
