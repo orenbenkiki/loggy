@@ -12,73 +12,7 @@ targeting human readability.
 To build run either `cargo build` or `cargo make build`.
 
 To test, run either `RUST_TEST_THREADS=1 cargo test` or `cargo make test`. Single thread testing is required due to the
-rust `log` facade mandating the use of a single global logger.
-
-## Examples
-
-The main program will need to set up the logger:
-
-```rust
-log::set_logger(&Loggy {
-    prefix: "...", // Typically, the name of the program.
-    show_time: true, // Or false.
-    show_thread: true, // Or false.
-}).unwrap();
-log::set_max_level(log::LevelFilter::Info); // Or whatever level you want.
-```
-
-To override the default module name prefix and replace it with an arbitrary scope name:
-
-```rust
-#[macro_use]
-extern crate loggy;
-
-loggy::in_named_scope("scope name", || {
-    /// Log messages generated here will be prefixed by the scope instead of the module name.
-    ...
-});
-```
-
-To provide user control over whether issues are errors or warnings:
-
-```rust
-#[macro_use]
-extern crate loggy;
-
-let is_issue_an_error = decide_based_on_command_line_arguments();
-if did_issue_occur() {
-    note!(is_issue_an_error, "issue occured");
-    provide_workaround();
-} else {
-    proceed_normally();
-}
-```
-
-To count the number of errors raised by some code (normally `error!` causes a `panic!`):
-
-```rust
-extern crate loggy;
-
-let errors_count = loggy::count_errors(|| {
-    /// Errors logged here will be counted.
-});
-```
-
-To test code that emits log messages;
-
-```rust
-#[macro_use]
-extern crate loggy;
-
-test_loggy!(test_name, {
-    run_some_code();
-    assert_log(r###"
-test: [<level>] <module>: <message>
-...
-"###);
-});
-
-```
+rust `log` facade mandating the use of a single global logger. This also applies to testing code that uses loggy.
 
 ## Motivation
 
@@ -91,71 +25,193 @@ implementation and features were designed to support a specific development work
 
 ## Features
 
-As an implementation of the log facade, this library is pretty basic and standard. Messages are emitted to the standard
-error stream. The message format is `<prefix>[<thread>]: <time> [<level]>] <module/scope>: <message>`, where the thread
-and time may be omitted.
+The provided features reflect the library's opinionated nature.
 
-Additional features reflect the library's opinionated nature:
+### Message formatting
 
-### Logging Features
+Messages are always emitted to the standard error (except for in tests, where they are captured). The message format is
+`<prefix>[<thread>]: <time> [<level]>] <module or scope>: <message>`, where the thread and time may be omitted when you
+set up the global logger. For example:
 
-* Logging multi-line messages (that contain `\n`) will generate multiple log lines. The first line will include the log
-  level in upper case (e.g., `[ERROR]`), all the following will specify it in lower case (e.g., `[error]`). The time
-  stamp, if included, will be identical for all these lines. This makes log messages easily `grep`-able, countable, etc.
+```rust
+extern crate loggy;
 
-* It is assumed that either the program is single-threaded, or, if multi-threaded, then the main thread spawns off
-  worker threads slaved to the main one, to perform transient tasks.
+fn main() {
+    log::set_logger(&loggy::Loggy {
+        prefix: "...", // Typically, the name of the program.
+        show_time: true, // Or false.
+        show_thread: true, // Or false.
+    }).unwrap();
+    log::set_max_level(log::LevelFilter::Info); // Or whatever level you want.
 
-* By default log messages are annotated with the name of the module generating them, but it is possible to override this
-  and specify an explicit scope name instead to better isolate specific processing stages and/or tasks.
+    /// Use loggy facilities in the rest of the code.
+    ...
+}
+```
 
-* In debug builds, debug messages are always emitted, regardless of the setting of the log level threshold (other
-  messages do obey the threshold). This is under the assumption that debug builds are only used for, well, debugging. In
-  contrast, in release builds, the threshold applies to debug messages as well. It is assumed that there would be none
-  (or that they would be very rare), since release builds are meant for, well, release rather than debugging.
+Logging multi-line messages (that contain `\n`) will generate multiple log lines, which will always be consecutive (even
+when logging from multiple threads). The first line will include the log level in upper case (e.g., `[ERROR]`), all the
+following will specify it in lower case (e.g., `[error]`). The time stamp, if included, will be identical for all these
+lines. This makes log messages easily `grep`-able, countable, etc. That said, the main focus of this crate is to provide
+human-readable logging as opposed to machine-processed logging ([slog](https://github.com/slog-rs/slog) would be a
+better match for that).
 
-* The format of the debug messages prefixes the `<module/scope>:` name with `<file>:<line>:`. This is under the
-  assumption that such messages would hardly ever be seen by users. Developers, on the other hand, would benefit from
-  having the exact code location generating each debug message.
+Logging a message provides a structured way to format relevant additional information. The syntax is an extension of
+`slog`, allowing for nested structures. However unlike in `slog`, the output format is fixed. For example:
 
-### Development Features
+```rust
+#[macro_use]
+extern crate loggy;
 
-* An additional `todox!` macro is provided, which behaves exactly like `debug!`. If using the `cargo todox` extension,
-  this prevents leftover debugging messages from being inadvertently left in the code.
+fn foo() {
+    let value = "bar";
+    loggy::info!(
+        "some text {}", 1;
+        value,
+        label {
+            sub_field => 2,
+        }
+    );
+}
+```
 
-* An additional `note!` macro is provided, which behaves either like `error!` or `warn!`, depending on the value of its
-  first (additional) parameter. This Boolean parameter is typically derived from a command line argument (ideally, this
-  should be automated as well). This makes it easy to allow the users to determine whether different conditions warrant
-  aborting the program.
+Will generate the message:
 
-* Every call to `error!` (including calls via `note!`), from any thread, is counted. The `errors` function returns the
-  total number of errors. This allows the program to easily decide on its final exit status.
+```
+program name: [INFO] scope name: some text 1
+program name: [info]   value: bar
+program name: [info]   label:
+program name: [info]     sub_field: 2
+```
 
-* In addition, using `count_errors` allows counting the errors that occur in specific regions of the code (in the
-  current thread). This allows the code to easily report multiple errors from some processing stage, deferring aborting
-  the program until the whole processing stage is done.
+### Named scopes
 
-### Testing Features
+By default log messages are annotated with the name of the module generating them, but it is possible to override this
+and specify an explicit scope name instead, to better identify specific processing stages and/or tasks. This can be
+achieved in three different ways:
 
-* A `test_loggy!` macro allows creating a test for code that emits log messages. All messages (except for debug
-  messages) are captured to a buffer. The test should use `assert_log` to examine this buffer, or `clear_log` to
-  explicitly discard it. Examining the log is an effective way to gain insights and verify the behavior of the tested
-  code.
+```rust
+#[macro_use]
+extern crate loggy;
 
-* Setting the `LOGGY_MIRROR_TO_STDERR` environment variable to any non-empty value will cause all messages to be emitted
-  to the standard error stream, together with any debug messages. This places the debug messages in the context of the
-  other messages, helping in debugging.
+#[loggy::scope("scope name")]
+fn foo() {
+    /// Log messages generated here will be prefixed by the scope name instead of the module name.
+    ...
+}
 
-  Note that the standard error contents are only reported for failing tests. Well, actually, the rust mechanism for
-  capturing the standard error seems to not work properly when the test spawns new threads, so any debug or mirrored
-  messages emitted from worker threads will be visible even for passing tests. This isn't a show stopper given such
-  messages and the `LOGGY_MIRROR_TO_STDERR` variable are only used when actively debugging an issue.
+fn bar() {
+    loggy::with_scope("scope name", || {
+        /// Log messages generated here will be prefixed by the scope name instead of the module name.
+        ...
+    });
+}
 
-* The rust `log` facade mandates using a single global logger. This, combined with `loggy` handling multiple threads at
-  once (counting errors, capturing messages), means that `test_loggy!` tests must run with `RUST_TEST_THREADS=1 cargo
-  test`. This can be automated by providing an `env` section in `Makefile.toml` and running `cargo make test` from the
-  command line, and similarly by providing an `env` section in the `.travis.yml` file (both methods are used by this
-  package).
+fn baz() {
+    if ... {
+        let _scope = loggy::Scope::new("scope name");
+        /// Log messages generated here will be prefixed by the scope name instead of the module name.
+        ...
+    } else {
+    }
+}
+```
+
+### Logging levels
+
+Log levels are given stronger semantics:
+
+* A `loggy::panic!` is logged using the `Error` level, but is always converted to a `std::panic!` (that is, terminates
+  the current thread).
+
+* A `loggy::error!` serves a different purpose. It also indicates a non-recoverable error, but allows the code to
+  continue, possibly reporting additional errors, but automatically calls `panic!` at the end of the current named
+  scope, indicating this scope has failed and reporting the total number of errors. Calling `loggy::error!` outside a
+  named scope is not allowed; it is converted to a generic "error! must only be used inside a scope" `std::panic!`
+  message. Errors, like panics, are always reported, regardless of the logging level.
+
+* A `loggy::warn!` is only reported if the logging level is at least `Warn`, and is otherwise silently ignored. Warnings
+  designate abnormal situations where the code has a reasonable way to recover and continue normal execution. This may
+  be used outside any named scope.
+
+* A `loggy::note!` allows the code to implement the "treat warnings as errors" functionality. It takes an additional
+  boolean flag specifying whether this should be treated as a `error!` or a `warn!`. Since this may be treated as an
+  `error!` it must only be used inside a scope. It is often useful to have program-wide flags determining whether
+  a certain class of warnings should become errors, for example using a command-line flag. This can be done as follows:
+
+```rust
+#[macro_use]
+extern crate loggy;
+
+mod some_condition {
+    loggy::is_an_error!(false); // By default, not an error.
+}
+
+fn main() {
+    ...
+    some_condition::set_is_an_error(... based on the command line flags ...);
+    ...
+    loggy::with_scope("scope name", || { // Errors must be inside some scope.
+        ...
+        if ... some condition ... {
+            note!(some_condition::is_an_error(), ...); // Will be an error or a warning depending on the command line flag.
+        }
+        ...
+    }
+    ...
+}
+```
+
+* A `loggy::info!` is only reported if the logging level is at least `Info`, and is otherwise silently ignored.
+  Information messages should be few and far between, to indicate overall program progress.
+
+* A `loggy::debug!` is meant specifically for debugging the program, and target the code developers rather than the
+  program's users. They are always emitted in debug builds; in release builds they are only emitted if the logging level
+  is at least `Debug`. The format of debug messages includes an additional `<file>:<line>:` prefix to identify their
+  exact source code location. Finally, `debug!` messages are always emitted to the standard error, and are never
+  captured in tests (see below), which makes it possible to debug tests that examine the expected log.
+
+* A `loggy::todox!` is identical to `loggy::debug!`. It allows using the `cargo todox` extension to ensure no leftover
+  debug messages are left in the code when debugging is over.
+
+* A `loggy::trace!` is only reported if the logging level is at least `Trace`, and is otherwise silently ignored. Trace
+  messages describe program progress in high detail so may generate a very large log.
+
+You can also use `loggy::log!(level, ...)` to specify the level of a message. Note that if this level is `Error`, the
+message can only be generated inside a named scope. There is no way to force a `panic!` this way (use `note!` instead).
+
+### Testing
+
+Several functions are provided to ensure the behavior of code using the above facilities:
+
+* `assert_logs(expected_log, || { ... })` executes some code and asserts that the actual log is identical to the
+  (unindented) `expected_log`. Crucially, this can be nested, so you can examine the log in parts. The collected log for
+  an outer `assert_logs` (or `assert_logs_panics`)  does not include the log captured by an internal `assert_logs`.
+
+* `assert_panics(expected_panic, || { ... })` executes some code and asserts that it panics with the (unindented)
+  `expected_panic`, ignoring the log.
+
+* `assert_logs_panics(expected_log, expected_panic, || { ... })` executes some code and asserts that both the actual log
+  is as expected, and that the code also panics with the expected message.
+
+* `assert_writes(expected_text, |writer| { ... })` is provided for convenience, asserting that the code writes the
+  (unindented) `expected_text` to the `writer: &mut dyn IoWrite`. This really should be in a more generic crate.
+
+These are intentionally not attribute macros attached to the test (like the standard `#[should_panic]`. This allows the
+expected texts to be dynamically formatted.
+
+The rust `log` facade mandates using a single global logger. This, combined with `loggy` handling multiple threads at
+once (counting errors, capturing messages), means that code using the above assertions must run with
+`RUST_TEST_THREADS=1 cargo test`.
+
+Setting the `LOGGY_MIRROR_TO_STDERR` environment variable to any non-empty value will cause all messages to be emitted
+to the standard error stream, together with any debug messages, even in tests. This places the debug messages in the
+context of the other messages, helping in debugging of tests.
+
+Ideally, the standard error content is only reported for failing tests (this includes any debug messages). In practice,
+the rust mechanism for capturing the standard error does not work properly when the test spawns new threads, so any
+debug messages emitted from worker threads will be visible even for passing tests. This isn't a show stopper given such
+messages and the `LOGGY_MIRROR_TO_STDERR` variable are only used when actively debugging an issue.
 
 ## License
 

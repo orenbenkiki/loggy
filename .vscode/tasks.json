@@ -1,0 +1,93 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"env": {
+				"RUST_TEST_THREADS": "1",
+			},
+			"type": "cargo",
+			"command": "test",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "rust: cargo test",
+			"presentation": {
+				"clear": true
+			}
+		},
+		{
+			"type": "cargo",
+			"command": "todox",
+			"presentation": {
+				"revealProblems": "onProblem",
+				"clear": true
+			},
+			"problemMatcher": {
+				"owner": "rust",
+				"fileLocation": "relative",
+				"pattern": [
+					{
+						"regexp": "^(.*):(\\d+): (.*)$",
+						"file": 1,
+						"line": 2,
+						"message": 3
+					}
+				]
+			},
+			"group": "build",
+			"label": "rust: cargo todox"
+		},
+		{
+			"env": {
+				"RUST_TEST_THREADS": "1",
+			},
+			"type": "cargo",
+			"command": "coverage-annotations",
+			"presentation": {
+				"revealProblems": "onProblem",
+				"clear": true
+			},
+			"problemMatcher": {
+				"owner": "rust",
+				"fileLocation": "absolute",
+				"pattern": [
+					{
+						"regexp": "^(.*):(\\d+): (.*)$",
+						"file": 1,
+						"line": 2,
+						"message": 3
+					}
+				]
+			},
+			"group": "build",
+			"label": "rust: cargo coverage-annotations"
+		},
+		{
+			"type": "cargo",
+			"command": "build",
+			"presentation": {
+				"revealProblems": "onProblem",
+				"clear": true,
+			},
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "rust: cargo build"
+		},
+		{
+			"type": "cargo",
+			"command": "doc",
+			"presentation": {
+				"revealProblems": "onProblem",
+				"clear": true,
+			},
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "rust: cargo doc"
+		}
+	]
+}

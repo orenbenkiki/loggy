@@ -1,134 +1,124 @@
 #[macro_use]
 extern crate loggy;
 
-use loggy::{
-    assert_logged, assert_logged_panics, assert_no_errors, assert_panics, assert_writes,
-    count_errors, in_named_scope,
-};
+use loggy::{assert_logs, assert_logs_panics, assert_panics, assert_writes, Scope};
 use std::thread;
 
-#[loggy]
 #[test]
-fn test_assert_panics() {
+fn assert_panics_are_captured() {
     assert_panics("test: [ERROR] test_log: foo\n", || panic!("foo"));
 }
 
-#[loggy]
 #[test]
-fn test_assert_writes() {
+fn assert_writes_are_captured() {
     assert_writes("foo", |writer| {
-        writer.write("foo".as_bytes()).unwrap();
+        writer.write_all("foo".as_bytes()).unwrap();
     });
 }
 
-#[loggy]
 #[test]
-fn test_assert_no_errors_should_detect_an_error() {
-    assert_no_errors("foo", || {});
-    assert_logged_panics(
-        "test: [ERROR] test_log: error\n",
-        "test: [ERROR] loggy: 1 foo error(s)\n",
+fn scoped_errors_should_be_captured() {
+    assert_logs_panics(
+        "test: [ERROR] scope: error\n",
+        "test: [ERROR] scope: failed with 1 error(s)",
         || {
-            assert_no_errors("foo", || {
+            Scope::with("scope", || {
                 error!("error");
             });
         },
     );
 }
 
-#[loggy]
-#[test]
-fn test_error_should_be_captured() {
-    error!("error");
-    assert_logged("test: [ERROR] test_log: error\n");
-}
-
-#[loggy]
 #[test]
 fn emit_structured_log_messages() {
-    info!("simple");
-    warn!("format {}", 0);
-    error!("fields"; foo => 1, bar { baz => 2 });
-    trace!("both {}", 0; foo => 1, bar { baz => 2 });
-    assert_logged(
+    assert_logs(
         r#"
         test: [INFO] test_log: simple
         test: [WARN] test_log: format 0
-        test: [ERROR] test_log: fields
-        test: [error] test_log:   foo: 1
-        test: [error] test_log:   bar:
-        test: [error] test_log:     baz: 2
         test: [TRACE] test_log: both 0
         test: [trace] test_log:   foo: 1
         test: [trace] test_log:   bar:
         test: [trace] test_log:     baz: 2
     "#,
+        || {
+            info!("simple");
+            warn!("format {}", 0);
+            trace!("both {}", 0; foo => 1, bar { baz => 2 });
+        },
     );
 }
 
-#[loggy]
 #[test]
 fn named_scope_should_replace_module() {
-    in_named_scope("scope", || error!("error"));
-    assert_logged(
+    assert_logs(
         r#"
-        test: [ERROR] scope: error
+        test: [WARN] scope: warning
     "#,
+        || {
+            Scope::with("scope", || {
+                warn!("warning");
+            })
+        },
     );
 }
 
-#[loggy]
 #[test]
 fn multi_line_should_be_captured() {
-    error!("error\ncontinuation\nlines");
-    assert_logged(
+    assert_logs(
         r#"
-        test: [ERROR] test_log: error
-        test: [error] test_log: continuation
-        test: [error] test_log: lines
+        test: [INFO] test_log: info
+        test: [info] test_log: continuation
+        test: [info] test_log: lines
     "#,
+        || {
+            info!("info\ncontinuation\nlines");
+        },
     );
 }
 
-#[loggy]
 #[test]
 fn warning_should_be_captured() {
-    warn!("warning");
-    assert_logged(
+    assert_logs(
         r#"
         test: [WARN] test_log: warning
     "#,
+        || {
+            warn!("warning");
+        },
     );
 }
 
-#[loggy]
 #[test]
 fn info_should_be_captured() {
-    info!("information");
-    assert_logged(
+    assert_logs(
         r#"
         test: [INFO] test_log: information
     "#,
+        || {
+            info!("information");
+        },
     );
 }
 
-#[loggy]
 #[test]
 fn debug_should_not_be_captured() {
     debug!("debug");
     todox!("debug");
 }
 
-#[loggy]
 #[test]
 fn notice_should_be_captured() {
-    note!(true, "error");
-    note!(false, "warning");
-    assert_logged(
+    assert_logs_panics(
         r#"
-        test: [ERROR] test_log: error
-        test: [WARN] test_log: warning
-    "#,
+        test: [ERROR] scope: error
+        test: [WARN] scope: warning
+        "#,
+        "test: [ERROR] scope: failed with 1 error(s)",
+        || {
+            let _scope = Scope::new("scope");
+            note!(true, "error");
+            note!(false, "warning");
+        },
     );
 }
 
@@ -136,7 +126,6 @@ mod foo {
     is_an_error!(false);
 }
 
-#[loggy]
 #[test]
 fn notice_should_be_controlled() {
     assert!(!foo::is_an_error());
@@ -145,68 +134,51 @@ fn notice_should_be_controlled() {
     assert!(foo::set_is_an_error(false));
 }
 
-#[loggy]
 #[test]
 fn worker_threads_should_be_reported() {
-    info!("before");
-    let child = thread::spawn(|| {
-        info!("child");
-    });
-    child.join().unwrap();
-    info!("after");
-    assert_logged(
+    assert_logs(
         r#"
         test: [INFO] test_log: before
         test: [INFO] test_log: child
         test: [INFO] test_log: after
     "#,
+        || {
+            info!("before");
+            let child = thread::spawn(|| {
+                info!("child");
+            });
+            child.join().unwrap();
+            info!("after");
+        },
     );
 }
 
-#[loggy]
+#[loggy::scope]
+fn scoped() {
+    info!("message");
+}
+
 #[test]
-fn errors_should_be_counted() {
-    assert_eq!(loggy::errors(), 0);
-    error!("unscoped");
-    assert_eq!(loggy::errors(), 1);
+fn scoped_functions_should_work() {
+    assert_logs(
+        r#"
+        test: [INFO] scoped: message
+        "#,
+        scoped,
+    );
+}
 
-    let outer_errors = count_errors(|| {
-        assert_eq!(loggy::errors(), 1);
+#[loggy::scope("scope name")]
+fn name_scoped() {
+    info!("message");
+}
 
-        let inner_errors = count_errors(|| {
-            assert_eq!(loggy::errors(), 1);
-            error!("inner");
-            assert_eq!(loggy::errors(), 2);
-        });
-
-        assert_eq!(inner_errors, 1);
-        assert_eq!(loggy::errors(), 2);
-
-        error!("outer");
-        assert_eq!(loggy::errors(), 3);
-    });
-
-    assert_eq!(outer_errors, 2);
-    assert_eq!(loggy::errors(), 3);
-
-    let child = thread::spawn(|| {
-        let errors_count = count_errors(|| {
-            assert_eq!(loggy::errors(), 3);
-            error!("child");
-            assert_eq!(loggy::errors(), 4);
-        });
-        assert_eq!(errors_count, 1);
-    });
-
-    child.join().unwrap();
-    assert_eq!(loggy::errors(), 4);
-
-    assert_logged(
-        r###"
-        test: [ERROR] test_log: unscoped
-        test: [ERROR] test_log: inner
-        test: [ERROR] test_log: outer
-        test: [ERROR] test_log: child
-        "###,
+#[test]
+fn named_scoped_functions_should_work() {
+    assert_logs(
+        r#"
+        test: [INFO] scope name: message
+        "#,
+        name_scoped,
     );
 }
