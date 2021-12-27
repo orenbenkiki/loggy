@@ -1,5 +1,5 @@
 # loggy
-[![Verify pushed commit](https://github.com/orenbenkiki/loggy/actions/workflows/on_push.yml/badge.svg)](https://github.com/orenbenkiki/loggy/actions/workflows/on_push.yml) [![Audited](https://github.com/orenbenkiki/loggy/actions/workflows/on_updated_dependencies.yml/badge.svg)](https://github.com/orenbenkiki/loggy/actions/workflows/on_updated_dependencies.yml) [![codecov](https://codecov.io/gh/orenbenkiki/loggy/branch/master/graph/badge.svg)](https://codecov.io/gh/orenbenkiki/loggy) [![Api Docs](https://docs.rs/loggy/badge.svg)](https://docs.rs/crate/loggy)
+[![Verify pushed commit](https://github.com/orenbenkiki/loggy/actions/workflows/on_push.yml/badge.svg)](https://github.com/orenbenkiki/loggy/actions/workflows/on_push.yml) [![Monthly audit](https://github.com/orenbenkiki/loggy/actions/workflows/monthly_audit.yml/badge.svg)](https://github.com/orenbenkiki/loggy/actions/workflows/on_updated_dependencies.yml) [![codecov](https://codecov.io/gh/orenbenkiki/loggy/branch/master/graph/badge.svg)](https://codecov.io/gh/orenbenkiki/loggy) [![Api Docs](https://docs.rs/loggy/badge.svg)](https://docs.rs/crate/loggy)
 
 An opinionated library for developing and testing rust applications that use logging.
 
@@ -30,7 +30,7 @@ Messages are always emitted to the standard error (except for in tests, where th
 assertions). The message format is `<prefix>[<thread>]: <time> [<level]>] <module or scope>: <message>`, where the
 thread and time may be omitted when you set up the global logger. For example:
 
-```rust
+```ignore
 extern crate loggy;
 
 fn main() {
@@ -54,7 +54,7 @@ lines. This makes log messages easily `grep`-able, countable, etc.
 Logging a message provides a structured way to format relevant additional information. The syntax is an extension of
 `slog`, allowing for nested structures. However unlike in `slog`, the output format is fixed. For example:
 
-```rust
+```ignore
 #[macro_use]
 extern crate loggy;
 
@@ -85,7 +85,7 @@ By default, log messages are annotated with the name of the module generating th
 processing stages and/or tasks, it is common to replace this by an explicit scope name; note this only applies to the
 current thread. Scopes can be established in three different ways:
 
-```rust
+```ignore
 #[macro_use]
 extern crate loggy;
 
@@ -138,7 +138,7 @@ Log levels are given stronger semantics:
   `error!` it must only be used inside a scope. It is often useful to have program-wide flags determining whether
   a certain class of warnings should become errors, for example using a command-line flag. This can be done as follows:
 
-```rust
+```ignore
 #[macro_use]
 extern crate loggy;
 
