@@ -1,7 +1,7 @@
-name: GitHub Actions Demo
+name: Verified
 on: [push]
 jobs:
-  Verify pushed commit:
+  verify_pushed_commit:
     runs-on: ubuntu-latest
     steps:
 
@@ -10,31 +10,30 @@ jobs:
       with:
         profile: minimal
         toolchain: stable
-        components: rustfmt, clippy  # ALLOW TODOX
+        components: rustfmt, clippy
 
+    # This is much faster than using actions-rs/install@v0.1, go figure.
     - name: Install cargo-tarpaulin binary crate
+      uses: actions-rs/tarpaulin@v0.1
+      with:
+        args: '--help'
+
+    - name: Install cargo-coverage-annotations binary crate
       uses: actions-rs/install@v0.1
       with:
-        crate: cargo-tarpaulin
+        crate: cargo-coverage-annotations
         version: latest
         use-tool-cache: true
 
-    - name: Install cargo-audit binary crate
-      uses: actions-rs/install@v0.1
-      with:
-        crate: cargo-audit
-        version: latest
-        use-tool-cache: true
-
-    - name: Install cargo-outdated binary crate
-      uses: actions-rs/install@v0.1
-      with:
-        crate: cargo-outdated
-        version: latest
-        use-tool-cache: true
+    - name: Check out repository code
+      uses: actions/checkout@v2
 
     - name: Verify commit
-      run: make ci
+      run: |
+        cd ${{ github.workspace }}
+        make ci
 
     - name: Upload coverage
-      run: bash <(curl -s https://codecov.io/bash)
+      run: |
+        cd ${{ github.workspace }}
+        bash <(curl -s https://codecov.io/bash)

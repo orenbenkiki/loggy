@@ -1,0 +1,35 @@
+name: Audited
+
+on:
+  push:
+    paths: 
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+
+jobs:
+  verify_updated_dependencies:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Install cargo-outdated binary crate
+      uses: actions-rs/install@v0.1
+      with:
+        crate: cargo-outdated
+        version: latest
+        use-tool-cache: true
+
+    - name: Install cargo-audit binary crate
+      uses: actions-rs/install@v0.1
+      with:
+        crate: cargo-audit
+        version: latest
+        use-tool-cache: true
+
+    - name: Check out repository code
+      uses: actions/checkout@v2
+
+    - name: Check for outdated dependencies
+      run: make outdated
+
+    - name: Audit for secure dependencies
+      run: make audit

@@ -95,14 +95,14 @@ audit: .make.audit  ## audit dependencies for bugs or security issues
 	cargo audit
 	touch $@
 
-common: fmt clippy test ca doc outdated audit
+common: fmt clippy test ca doc
 
-dev: refmt tags common ## verify during development
+dev: refmt tags common outdated audit ## verify during development
 
 staged:  ## check everything is staged for git commit
 	@if git status . | grep -q 'Changes not staged\|Untracked files'; then git status; false; else true; fi
 
-pc: staged common  ## verify everything before commit
+pc: staged common outdated audit  ## verify everything before commit
 
 pre-publish: .cargo/config.toml  ## publish dry run
 	cargo publish --dry-run

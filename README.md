@@ -1,4 +1,5 @@
-# loggy [![Build Status](https://api.travis-ci.org/orenbenkiki/loggy.svg?branch=master)](https://travis-ci.org/orenbenkiki/loggy) [![codecov](https://codecov.io/gh/orenbenkiki/loggy/branch/master/graph/badge.svg)](https://codecov.io/gh/orenbenkiki/loggy) [![Api Docs](https://docs.rs/loggy/badge.svg)](https://docs.rs/crate/loggy)
+# loggy
+[![Verify pushed commit](https://github.com/orenbenkiki/loggy/actions/workflows/on_push.yml/badge.svg)](https://github.com/orenbenkiki/loggy/actions/workflows/on_push.yml) [![Audited](https://github.com/orenbenkiki/loggy/actions/workflows/on_updated_dependencies.yml/badge.svg)](https://github.com/orenbenkiki/loggy/actions/workflows/on_updated_dependencies.yml) [![codecov](https://codecov.io/gh/orenbenkiki/loggy/branch/master/graph/badge.svg)](https://codecov.io/gh/orenbenkiki/loggy) [![Api Docs](https://docs.rs/loggy/badge.svg)](https://docs.rs/crate/loggy)
 
 An opinionated library for developing and testing rust applications that use logging.
 
@@ -197,7 +198,7 @@ Testing logging faces the following inconvenient truths:
 * A test capturing logged messages should capture everything generated from all sub-threads spawned by the test.
 
 Therefore, the following following assertions take a global lock to ensure messages from different tests do not
-interfere with each other. This has two implications:
+interfere with each other. This has several implications:
 
 * The test assertions have to setup a logger that captures the messages, so do not combine logging tests with any code
   that sets up the global logger.
