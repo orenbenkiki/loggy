@@ -1,0 +1,101 @@
+{
+	// See https://go.microsoft.com/fwlink/?LinkId=733558
+	// for the documentation about the tasks.json format
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"command": "make test",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "Rust: make test",
+			"presentation": {
+				"clear": true
+			}
+		},
+		{
+			"type": "shell",
+			"command": "make clippy",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "Rust: make clippy",
+			"presentation": {
+				"clear": true
+			}
+		},
+		{
+			"type": "shell",
+			"command": "make todox",
+			"presentation": {
+				"revealProblems": "onProblem",
+				"clear": true
+			},
+			"problemMatcher": {
+				"owner": "rust",
+				"fileLocation": "relative",
+				"pattern": [
+					{
+						"regexp": "^([^ ]*):(\\d+): (.*)$",
+						"file": 1,
+						"line": 2,
+						"message": 3
+					}
+				]
+			},
+			"group": "build",
+			"label": "Rust: make todox"
+		},
+		{
+			"type": "shell",
+			"command": "make ca",
+			"presentation": {
+				"revealProblems": "onProblem",
+				"clear": true
+			},
+			"problemMatcher": {
+				"owner": "rust",
+				"fileLocation": "absolute",
+				"pattern": [
+					{
+						"regexp": "^([^ ]*):(\\d+): (.*)$",
+						"file": 1,
+						"line": 2,
+						"message": 3
+					}
+				]
+			},
+			"group": "build",
+			"label": "Rust: make coverage-annotations"
+		},
+		{
+			"type": "shell",
+			"command": "make build",
+			"presentation": {
+				"revealProblems": "onProblem",
+				"clear": true,
+			},
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "Rust: make build"
+		},
+		{
+			"type": "shell",
+			"command": "make doc",
+			"presentation": {
+				"revealProblems": "onProblem",
+				"clear": true,
+			},
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "Rust: make doc"
+		}
+	]
+}
