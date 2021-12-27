@@ -1,5 +1,6 @@
 name: Monthly audit
 on:
+  workflow_dispatch:
   schedule:
     - cron: '30 12 15 * *'  # 12:30 on the 15th of every month.
 
