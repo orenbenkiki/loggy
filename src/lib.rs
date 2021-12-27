@@ -4,8 +4,7 @@
 // Licensed under the MIT license <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your option. This file may not
 // be copied, modified, or distributed except according to those terms.
 
-//! An opinionated library for developing and testing rust applications that use logging.
-
+#![doc = include_str!("../README.md")]
 #![deny(warnings)]
 #![deny(rust_2018_idioms)]
 #![deny(clippy::all)]

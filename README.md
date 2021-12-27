@@ -8,13 +8,6 @@ additional features focusing on development of applications (as opposed to libra
 influenced by [slog](https://github.com/slog-rs/slog), but allow for nested structures and provide only a single format
 targeting human readability.
 
-## Building and Testing
-
-To build run either `cargo build` or `cargo make build`.
-
-To test, run either `RUST_TEST_THREADS=1 cargo test` or `make test`. Single thread testing is required due to the rust
-`log` facade mandating the use of a single global logger. This also applies to testing code that uses loggy.
-
 ## Motivation
 
 This library was written to support the development of a non-trivial Rust binary application(s) that uses logging. The
@@ -48,8 +41,8 @@ fn main() {
     }).unwrap();
     log::set_max_level(log::LevelFilter::Info); // Or whatever level you want.
 
-    /// Use loggy facilities in the rest of the code.
-    ...
+    // Use loggy facilities in the rest of the code.
+    // ...
 }
 ```
 
@@ -79,7 +72,7 @@ fn foo() {
 
 Will generate the message:
 
-```
+```yaml
 program name: [INFO] scope name: some text 1
 program name: [info]   value: bar
 program name: [info]   label:
@@ -98,26 +91,26 @@ extern crate loggy;
 
 #[loggy::scope("scope name")]
 fn foo() {
-    /// Log messages generated here will be prefixed by the scope name instead of the module name.
-    ...
+    // Log messages generated here will be prefixed by the scope name instead of the module name.
+    // ...
 }
 
 #[loggy::scope]
 fn bar() {
-    /// Log messages generated here will be prefixed by the function name `bar` instead of the module name.
-    ...
+    // Log messages generated here will be prefixed by the function name `bar` instead of the module name.
+    // ...
 }
 
 fn baz() {
     loggy::with_scope("scope name", || {
-        /// Log messages generated here will be prefixed by the scope name instead of the module name.
-        ...
+        // Log messages generated here will be prefixed by the scope name instead of the module name.
+        // ...
     });
 
-    if ... {
+    if some_condition {
         let _scope = loggy::Scope::new("scope name");
-        /// Log messages generated here will be prefixed by the scope name instead of the module name.
-        ...
+        // Log messages generated here will be prefixed by the scope name instead of the module name.
+        // ...
     } else {
     }
 }
@@ -154,17 +147,17 @@ mod some_condition {
 }
 
 fn main() {
-    ...
-    some_condition::set_is_an_error(... based on the command line flags ...);
-    ...
+    // ...
+    some_condition::set_is_an_error(based_on_the_command_line_flags);
+    // ...
     loggy::with_scope("scope name", || { // Errors must be inside some scope.
-        ...
-        if ... some condition ... {
-            note!(some_condition::is_an_error(), ...); // Will be an error or a warning depending on the command line flag.
+        // ...
+        if test_for_some_condition {
+            note!(some_condition::is_an_error(), "some condition"); // Will be an error or a warning depending on the command line flag.
         }
-        ...
-    }
-    ...
+        // ...
+    });
+    // ...
 }
 ```
 
