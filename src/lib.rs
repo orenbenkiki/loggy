@@ -4,10 +4,6 @@
 // Licensed under the MIT license <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your option. This file may not
 // be copied, modified, or distributed except according to those terms.
 
-// TODO test_no_loggy?
-// TODO: proc macros
-// TODO: check debug vs. trace
-
 //! An opinionated library for developing and testing rust applications that use logging.
 
 #![deny(warnings)]

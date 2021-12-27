@@ -1,0 +1,40 @@
+name: GitHub Actions Demo
+on: [push]
+jobs:
+  Verify pushed commit:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Install Rust stable with rustfmt and clippy
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        components: rustfmt, clippy  # ALLOW TODOX
+
+    - name: Install cargo-tarpaulin binary crate
+      uses: actions-rs/install@v0.1
+      with:
+        crate: cargo-tarpaulin
+        version: latest
+        use-tool-cache: true
+
+    - name: Install cargo-audit binary crate
+      uses: actions-rs/install@v0.1
+      with:
+        crate: cargo-audit
+        version: latest
+        use-tool-cache: true
+
+    - name: Install cargo-outdated binary crate
+      uses: actions-rs/install@v0.1
+      with:
+        crate: cargo-outdated
+        version: latest
+        use-tool-cache: true
+
+    - name: Verify commit
+      run: make ci
+
+    - name: Upload coverage
+      run: bash <(curl -s https://codecov.io/bash)
