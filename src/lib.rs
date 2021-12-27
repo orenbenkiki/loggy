@@ -29,6 +29,7 @@ use std::io::{stderr, Write as IoWrite};
 use std::marker::PhantomData;
 use std::panic::{catch_unwind, set_hook, take_hook, AssertUnwindSafe};
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use unindent::unindent;
 
 /// Log a structured message.
@@ -207,10 +208,8 @@ macro_rules! trace { ( $( $arg:tt )* ) => { loggy::log!( log::Level::Trace , $( 
 #[macro_export]
 macro_rules! is_an_error {
     ($default:expr) => {
-        lazy_static! {
-            static ref IS_AN_ERROR: std::sync::atomic::AtomicBool =
-                std::sync::atomic::AtomicBool::new($default);
-        }
+        static IS_AN_ERROR: std::sync::atomic::AtomicBool =
+            std::sync::atomic::AtomicBool::new($default);
 
         pub fn set_is_an_error(is_error: bool) -> bool {
             IS_AN_ERROR.swap(is_error, std::sync::atomic::Ordering::Relaxed)
@@ -275,13 +274,9 @@ impl<'a> Drop for Scope<'a> {
             .with(|named_scope| named_scope.replace(self.previous))
             .unwrap();
         if current.errors > 0 {
-            let logger_ptr: *const dyn Log = logger();
-            #[allow(clippy::cast_ptr_alignment)]
-            #[allow(clippy::ptr_as_ptr)]
-            let loggy: &Loggy = unsafe { &*(logger_ptr as *const Loggy) };
             std::panic!(
                 "{}: [ERROR] {}: failed with {} error(s)",
-                loggy.prefix, // APPEARS NOT TESTED
+                Loggy::global().prefix, // APPEARS NOT TESTED
                 current.name,
                 current.errors
             );
@@ -304,13 +299,12 @@ pub struct Loggy {
 }
 
 lazy_static! {
-    // BEGIN NOT TESTED
+    /// The format to use for the time in emitted log messages.
     static ref TIME_FORMAT: Vec<time::format_description::FormatItem<'static>> =
-        time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap();
-    // END NOT TESTED
-    static ref TOTAL_THREADS: std::sync::atomic::AtomicUsize =
-        std::sync::atomic::AtomicUsize::new(0);
+        time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap(); // NOT TESTED
 }
+
+static TOTAL_THREADS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 thread_local!(
     static THREAD_ID: Cell<Option<usize>> = Cell::new(None);
@@ -328,15 +322,6 @@ impl Log for Loggy {
     }
 
     fn log(&self, record: &Record<'_>) {
-        if record.level() == Level::Error {
-            NAMED_SCOPE.with(|maybe_named_scope| {
-                if let Some(ref mut named_scope) = maybe_named_scope.get() {
-                    named_scope.errors += 1;
-                    maybe_named_scope.set(Some(*named_scope));
-                }
-            });
-        }
-
         if self.enabled(record.metadata()) {
             emit_message(record.level(), self.format_message(record).as_ref());
         }
@@ -350,6 +335,15 @@ impl Log for Loggy {
 }
 
 impl Loggy {
+    fn global() -> &'static Self {
+        let logger_ptr: *const dyn Log = logger();
+        #[allow(clippy::cast_ptr_alignment)]
+        #[allow(clippy::ptr_as_ptr)]
+        unsafe {
+            &*(logger_ptr as *const Self)
+        }
+    }
+
     fn format_message(&self, record: &Record<'_>) -> String {
         let now = if self.show_time {
             // BEGIN NOT TESTED
@@ -405,11 +399,13 @@ impl Loggy {
         write!(&mut message, " [{}]", level).unwrap();
 
         if record.level() == Level::Debug {
+            // BEGIN NOT TESTED
             write!(
+                // END NOT TESTED
                 &mut message,
                 " {}:{}:",
-                record.file().unwrap(),
-                record.line().unwrap()
+                record.file().unwrap(), // NOT TESTED
+                record.line().unwrap()  // NOT TESTED
             )
             .unwrap();
         }
@@ -428,17 +424,16 @@ lazy_static! {
     /// The buffer capturing the log messages for assertions.
     static ref LOG_BUFFER: Mutex<Cell<Option<String>>> = Mutex::new(Cell::new(None));
 
-    /// Whether we already setup loggy as the global logger.
-    static ref DID_SET_LOGGER: AtomicBool = AtomicBool::new(false);
-}
-
-lazy_static! {
+    /// Whether to mirror captured log messages to stderr.
     static ref MIRROR_TO_STDERR: bool = std::env::var("LOGGY_MIRROR_TO_STDERR")
         // BEGIN NOT TESTED
         .map(|var| !var.is_empty())
         .unwrap_or(false);
-        // END NOT TESTED
+    // END NOT TESTED
 }
+
+/// Whether we already setup loggy as the global logger.
+static DID_SET_LOGGER: AtomicBool = AtomicBool::new(false);
 
 /// Force the next error-level message to be emitted as a panic.
 #[doc(hidden)]
@@ -451,16 +446,26 @@ pub fn force_panic() {
 /// Actually emit (or capture) a log message.
 fn emit_message(level: Level, message: &str) {
     if level == Level::Debug {
-        eprint!("{}", message);
+        eprint!("{}", message); // NOT TESTED
         return;
     }
 
     if level == Level::Error {
-        FORCE_PANIC.with(|force_panic| {
-            if force_panic.replace(false) {
-                std::panic!("{}", message);
-            }
-        });
+        if FORCE_PANIC.with(|forced_panic| forced_panic.replace(false)) {
+            std::panic!("{}", message);
+        } else {
+            NAMED_SCOPE.with(|maybe_named_scope| {
+                if let Some(ref mut named_scope) = maybe_named_scope.get() {
+                    named_scope.errors += 1;
+                    maybe_named_scope.set(Some(*named_scope));
+                } else {
+                    std::panic!(
+                        "{}: error! called outside a named scope",
+                        Loggy::global().prefix,
+                    );
+                }
+            });
+        }
     }
 
     let mut log_buffer = LOG_BUFFER.lock();
@@ -510,10 +515,17 @@ impl Drop for Capture {
 /// The expected string is passed through `unindent` prior to the comparison, to enable proper indentation of the tests
 /// data in the code.
 ///
+/// # Notes
+///
+/// The rust `log` facade mandates using a single global logger. Therefore, only one test can capture the log at any
+/// given time, using a a global `Mutex`. Therefore, nesting this inside itself, [`assert_panics`] or
+/// [`assert_logs_panics`] will deadlock.
+///
 /// # Panics
 ///
 /// If the actual log is different from the expected log.
 pub fn assert_logs<Code: FnOnce()>(expected_log: &str, code: Code) {
+    let _single_test = SINGLE_TEST.lock();
     do_assert_logs_panics(Some(expected_log), None, code);
 }
 
@@ -527,17 +539,40 @@ pub fn assert_logs<Code: FnOnce()>(expected_log: &str, code: Code) {
 /// * Allows the caller to dynamically generate the expected panic message;
 /// * Insists on the exact panic string rather than just a sub-string if it.
 ///
+/// # Notes
+///
+/// The rust `log` facade mandates using a single global logger. Therefore, only one test can capture the log at any
+/// given time, using a a global `Mutex`. Therefore, nesting this inside itself, [`assert_logs`] or
+/// [`assert_logs_panics`] will deadlock.
+///
 /// # Panics
 ///
 /// If the code does not panic, or panics with a different message than expected.
 pub fn assert_panics<Code: FnOnce()>(expected_panic: &str, code: Code) {
+    let _single_test = SINGLE_TEST.lock();
     do_assert_logs_panics(None, Some(expected_panic), code);
 }
 
 /// Combine [`assert_logs`] and [`assert_panics`], that is, assert that the expected log is generated and then the
 /// expected panic is triggered.
+///
+/// # Notes
+///
+/// The rust `log` facade mandates using a single global logger. Therefore, only one test can capture the log at any
+/// given time, using a a global `Mutex`. Therefore, nesting this inside itself, [`assert_panics`] or
+/// [`assert_logs_panics`] will deadlock.
+///
+/// # Panics
+///
+/// If the code does generate the expected log, or does not panic, or panics with a different message than expected.
 pub fn assert_logs_panics<Code: FnOnce()>(expected_log: &str, expected_panic: &str, code: Code) {
+    let _single_test = SINGLE_TEST.lock();
     do_assert_logs_panics(Some(expected_log), Some(expected_panic), code);
+}
+
+lazy_static! {
+    /// Ensure there is only a single test which is capturing log entries.
+    static ref SINGLE_TEST: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
 }
 
 fn do_assert_logs_panics<Code: FnOnce()>(

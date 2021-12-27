@@ -5,19 +5,21 @@ use loggy::{assert_logs, assert_logs_panics, assert_panics, assert_writes, Scope
 use std::thread;
 
 #[test]
-fn assert_panics_are_captured() {
+fn panic_outside_scope_is_captured() {
     assert_panics("test: [ERROR] test_log: foo\n", || panic!("foo"));
 }
 
 #[test]
-fn assert_writes_are_captured() {
-    assert_writes("foo", |writer| {
-        writer.write_all("foo".as_bytes()).unwrap();
+fn panic_inside_scope_is_captured() {
+    assert_panics("test: [ERROR] scope: foo\n", || {
+        Scope::with("scope", || {
+            panic!("foo");
+        });
     });
 }
 
 #[test]
-fn scoped_errors_should_be_captured() {
+fn error_inside_scope_is_captured() {
     assert_logs_panics(
         "test: [ERROR] scope: error\n",
         "test: [ERROR] scope: failed with 1 error(s)",
@@ -30,6 +32,13 @@ fn scoped_errors_should_be_captured() {
 }
 
 #[test]
+fn error_outside_scope_is_panic() {
+    assert_panics("test: error! called outside a named scope", || {
+        error!("outsider");
+    });
+}
+
+#[test]
 fn emit_structured_log_messages() {
     assert_logs(
         r#"
@@ -39,7 +48,7 @@ fn emit_structured_log_messages() {
         test: [trace] test_log:   foo: 1
         test: [trace] test_log:   bar:
         test: [trace] test_log:     baz: 2
-    "#,
+        "#,
         || {
             info!("simple");
             warn!("format {}", 0);
@@ -50,16 +59,11 @@ fn emit_structured_log_messages() {
 
 #[test]
 fn named_scope_should_replace_module() {
-    assert_logs(
-        r#"
-        test: [WARN] scope: warning
-    "#,
-        || {
-            Scope::with("scope", || {
-                warn!("warning");
-            })
-        },
-    );
+    assert_logs("test: [WARN] scope: warning\n", || {
+        Scope::with("scope", || {
+            warn!("warning");
+        })
+    });
 }
 
 #[test]
@@ -69,7 +73,7 @@ fn multi_line_should_be_captured() {
         test: [INFO] test_log: info
         test: [info] test_log: continuation
         test: [info] test_log: lines
-    "#,
+        "#,
         || {
             info!("info\ncontinuation\nlines");
         },
@@ -78,26 +82,16 @@ fn multi_line_should_be_captured() {
 
 #[test]
 fn warning_should_be_captured() {
-    assert_logs(
-        r#"
-        test: [WARN] test_log: warning
-    "#,
-        || {
-            warn!("warning");
-        },
-    );
+    assert_logs("test: [WARN] test_log: warning\n", || {
+        warn!("warning");
+    });
 }
 
 #[test]
 fn info_should_be_captured() {
-    assert_logs(
-        r#"
-        test: [INFO] test_log: information
-    "#,
-        || {
-            info!("information");
-        },
-    );
+    assert_logs("test: [INFO] test_log: information\n", || {
+        info!("information");
+    });
 }
 
 #[test]
@@ -160,12 +154,7 @@ fn scoped() {
 
 #[test]
 fn scoped_functions_should_work() {
-    assert_logs(
-        r#"
-        test: [INFO] scoped: message
-        "#,
-        scoped,
-    );
+    assert_logs("test: [INFO] scoped: message\n", scoped);
 }
 
 #[loggy::scope("scope name")]
@@ -175,10 +164,12 @@ fn name_scoped() {
 
 #[test]
 fn named_scoped_functions_should_work() {
-    assert_logs(
-        r#"
-        test: [INFO] scope name: message
-        "#,
-        name_scoped,
-    );
+    assert_logs("test: [INFO] scope name: message\n", name_scoped);
+}
+
+#[test]
+fn writes_are_captured() {
+    assert_writes("foo", |writer| {
+        writer.write_all("foo".as_bytes()).unwrap();
+    });
 }
