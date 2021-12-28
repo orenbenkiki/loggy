@@ -5,7 +5,7 @@
 	"tasks": [
 		{
 			"type": "shell",
-			"command": "make todo_x",
+			"command": "make todo-x",
 			"presentation": {
 				"revealProblems": "onProblem",
 				"clear": true
@@ -23,7 +23,7 @@
 				]
 			},
 			"group": "build",
-			"label": "Rust: make todo_x"
+			"label": "Rust: make todo-x"
 		},
 		{
 			"type": "shell",

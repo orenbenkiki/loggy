@@ -25,8 +25,8 @@ jobs:
       id: cache
       uses: ./.github/actions/cargo-cache
 
-    - name: Install cargo-todox binary crate
-      run: which cargo-todox || cargo install cargo-todox
+    - name: Install cargo-todox binary crate  # ALLOW TODOX
+      run: which cargo-todox || cargo install cargo-todox  # ALLOW TODOX
 
     - name: Install cargo-tarpaulin binary crate
       run: which cargo-tarpaulin || cargo install cargo-tarpaulin
