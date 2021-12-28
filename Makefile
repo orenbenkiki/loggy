@@ -81,7 +81,12 @@ coverage: .make.coverage  ## generate coverage report
 	$(TEST_FLAGS) cargo tarpaulin --skip-clean --out Xml
 	touch $@
 
+ifeq ($(wildcard $(.no_coverage_annotations)),)
+coverage-annotations:
+todo_x:
+else
 coverage-annotations: .make.coverage-annotations  ## check coverage annotations in code
+endif
 
 .make.coverage-annotations: .cargo/config.toml .make.coverage
 	cargo coverage-annotations
