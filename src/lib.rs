@@ -24,7 +24,7 @@ use std::io::{stderr, Write as IoWrite};
 use std::marker::PhantomData;
 use std::panic::{catch_unwind, set_hook, take_hook, AssertUnwindSafe};
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
+use std::thread::panicking;
 use unindent::unindent;
 
 /// Log a structured message.
@@ -268,7 +268,7 @@ impl<'a> Drop for Scope<'a> {
         let current = NAMED_SCOPE
             .with(|named_scope| named_scope.replace(self.previous))
             .unwrap();
-        if current.errors > 0 {
+        if current.errors > 0 && !panicking() {
             std::panic!(
                 "{}: [ERROR] {}: failed with {} error(s)",
                 Loggy::global().prefix,
@@ -446,7 +446,7 @@ fn emit_message(level: Level, message: &str) {
     }
 
     if level == Level::Error {
-        if FORCE_PANIC.with(|forced_panic| forced_panic.replace(false)) {
+        if FORCE_PANIC.with(|force_panic| force_panic.replace(false)) {
             std::panic!("{}", message);
         } else {
             NAMED_SCOPE.with(|maybe_named_scope| {
@@ -503,6 +503,11 @@ impl Drop for Capture {
     fn drop(&mut self) {
         LOG_BUFFER.lock().set(None);
     }
+}
+
+lazy_static! {
+    /// Ensure there is only a single test which is capturing log entries.
+    static ref SINGLE_TEST: Mutex<()> = Mutex::new(());
 }
 
 /// Assert that the collected log messages are as expected.
@@ -567,11 +572,6 @@ pub fn assert_logs_panics<Code: FnOnce() -> Result, Result>(
 ) {
     let _single_test = SINGLE_TEST.lock();
     do_assert_logs_panics(Some(expected_log), Some(expected_panic), code);
-}
-
-lazy_static! {
-    /// Ensure there is only a single test which is capturing log entries.
-    static ref SINGLE_TEST: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
 }
 
 fn do_assert_logs_panics<Code: FnOnce() -> Result, Result>(
