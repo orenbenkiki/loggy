@@ -12,6 +12,15 @@ jobs:
         toolchain: stable
         components: rustfmt, clippy
 
+    - name: Install Rust nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: nightly
+
+    - name: Check out repository code
+      uses: actions/checkout@v2
+
     - name: Load cargo cache
       id: cache
       uses: ./.github/actions/cargo-cache
@@ -37,13 +46,10 @@ jobs:
         version: latest
         use-tool-cache: true
 
-    - name: Check out repository code
-      uses: actions/checkout@v2
-
     - name: Verify commit
       run: |
         cd ${{ github.workspace }}
-        make ci
+        make on-push
 
     - name: Upload coverage
       run: |

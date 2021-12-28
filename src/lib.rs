@@ -271,7 +271,7 @@ impl<'a> Drop for Scope<'a> {
         if current.errors > 0 {
             std::panic!(
                 "{}: [ERROR] {}: failed with {} error(s)",
-                Loggy::global().prefix, // APPEARS NOT TESTED
+                Loggy::global().prefix,
                 current.name,
                 current.errors
             );
@@ -306,9 +306,9 @@ thread_local!(
     static FORCE_PANIC: Cell<bool> = Cell::new(false);
 );
 
-// BEGIN NOT TESTED
+// BEGIN APPEARS NOT TESTED
 impl Log for Loggy {
-    // END NOT TESTED
+    // END APPEARS NOT TESTED
 
     fn enabled(&self, metadata: &Metadata<'_>) -> bool {
         metadata.level() == Level::Error
@@ -394,13 +394,13 @@ impl Loggy {
         write!(&mut message, " [{}]", level).unwrap();
 
         if record.level() == Level::Debug {
-            // BEGIN NOT TESTED
+            // BEGIN APPEARS NOT TESTED
             write!(
-                // END NOT TESTED
+                // END APPEARS NOT TESTED
                 &mut message,
                 " {}:{}:",
-                record.file().unwrap(), // NOT TESTED
-                record.line().unwrap()  // NOT TESTED
+                record.file().unwrap(), // APPEARS NOT TESTED
+                record.line().unwrap()  // APPEARS NOT TESTED
             )
             .unwrap();
         }
@@ -421,10 +421,10 @@ lazy_static! {
 
     /// Whether to mirror captured log messages to stderr.
     static ref MIRROR_TO_STDERR: bool = std::env::var("LOGGY_MIRROR_TO_STDERR")
-        // BEGIN NOT TESTED
+        // BEGIN MAYBE TESTED
         .map(|var| !var.is_empty())
         .unwrap_or(false);
-    // END NOT TESTED
+    // END MAYBE TESTED
 }
 
 /// Whether we already setup loggy as the global logger.
@@ -441,7 +441,7 @@ pub fn force_panic() {
 /// Actually emit (or capture) a log message.
 fn emit_message(level: Level, message: &str) {
     if level == Level::Debug {
-        eprint!("{}", message); // NOT TESTED
+        eprint!("{}", message); // APPEARS NOT TESTED
         return;
     }
 
@@ -468,7 +468,7 @@ fn emit_message(level: Level, message: &str) {
         None => eprint!("{}", message), // NOT TESTED
         Some(buffer) => {
             if *MIRROR_TO_STDERR {
-                eprint!("{}", message); // NOT TESTED
+                eprint!("{}", message); // MAYBE TESTED
             }
             buffer.push_str(message);
         }

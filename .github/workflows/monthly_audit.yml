@@ -9,6 +9,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+    - name: Install Rust stable with rustfmt and clippy
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        components: rustfmt, clippy
+
+    - name: Check out repository code
+      uses: actions/checkout@v2
+
     - name: Install cargo-outdated binary crate
       uses: actions-rs/install@v0.1
       with:
@@ -27,11 +37,5 @@ jobs:
         version: latest
         use-tool-cache: true
 
-    - name: Check out repository code
-      uses: actions/checkout@v2
-
-    - name: Check for outdated dependencies
-      run: make outdated
-
-    - name: Audit for secure dependencies
-      run: make audit
+    - name: Monthly audit
+      run: make monthly

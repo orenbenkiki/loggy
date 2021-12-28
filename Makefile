@@ -15,23 +15,35 @@ for line in sys.stdin:
 	match = re.match(r'^([a-zA-Z_-]+):.*?## (.*)$$', line)
 	if match:
 		target, help = match.groups()
-		print("%-20s %s" % (target, help))
+		print("%-20s %s" % (target, help.replace(' # ALLOW TODOX', '')))
 endef
 export PRINT_HELP_PYSCRIPT
 
 help:  ## print this error message
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
 
-fmt: .make.fmt  ## check code format
-	
-.make.fmt: .cargo/config.toml $(CARGO_SOURCES)
-	cargo fmt -- --check
+ifeq ($(wildcard $(.no_todo_x)),)
+todo_x:
+else
+todo_x: .make.todo_x  ## check for leftover TODOX # ALLOW TODOX
+endif
+
+TODO = todo$()x
+
+.make.todo_x: $(TODO_X_SOURCES) # ALLOW TODOX
+	cargo $(TODO)
 	touch $@
 
-refmt: .make.refmt  ## reformat the code
+formatted: .make.formatted  ## check code is properly formatted
 	
-.make.refmt: .cargo/config.toml $(CARGO_SOURCES)
-	cargo fmt
+.make.formatted: .cargo/config.toml $(CARGO_SOURCES)
+	cargo fmt --all -- --check
+	touch $@
+
+reformat: .make.reformat  ## reformat the code
+	
+.make.reformat: .cargo/config.toml $(CARGO_SOURCES)
+	cargo fmt --all
 	touch $@
 
 check: .make.check  ## check the sources
@@ -40,9 +52,9 @@ check: .make.check  ## check the sources
 	cargo check --tests
 	touch $@
 
-clippy: .make.clippy  ## check for code smells with clippy
+smells: .make.smells  ## check for code smells with clippy
 	
-.make.clippy: .cargo/config.toml .make.check
+.make.smells: .cargo/config.toml .make.check
 	cargo clippy -- --no-deps
 	touch $@
 
@@ -64,16 +76,16 @@ retest: .cargo/config.toml  ## force re-run tests with nocapture
 
 coverage: .make.coverage  ## generate coverage report
 
-.make.coverage: .make.test # $(CARGO_SOURCES)
+.make.coverage: .make.test
 	mv .cargo/config.toml .cargo/_config.toml
 	rm -f tarpaulin*
 	$(TEST_FLAGS) cargo tarpaulin --skip-clean --out Xml
 	mv .cargo/_config.toml .cargo/config.toml
 	touch $@
 
-ca: .make.ca  ## check coverage annotations in code
+coverage-annotations: .make.coverage-annotations  ## check coverage annotations in code
 
-.make.ca: .cargo/config.toml .make.coverage
+.make.coverage-annotations: .cargo/config.toml .make.coverage
 	cargo coverage-annotations
 	touch $@
 
@@ -86,7 +98,7 @@ doc: .make.doc  ## generate documentation
 udeps: .make.udeps  ## check for unused dependencies
 	
 .make.udeps: .cargo/config.toml $(TOML_SOURCES) $(RS_SOURCES)
-	cargo +nightly udeps --workspace
+	cargo +nightly udeps --workspace --all-targets
 	touch $@
 
 outdated: .make.outdated  ## check all dependencies are up-to-date
@@ -101,21 +113,23 @@ audit: .make.audit  ## audit dependencies for bugs or security issues
 	cargo audit
 	touch $@
 
-common: fmt clippy udeps test ca doc
+common: todo_x formatted smells udeps coverage-annotations doc
 
-dev: refmt tags common outdated audit ## verify during development
+dev: reformat tags common outdated audit  ## verify during development
 
 staged:  ## check everything is staged for git commit
 	@if git status . | grep -q 'Changes not staged\|Untracked files'; then git status; false; else true; fi
 
-pc: staged common outdated audit  ## verify everything before commit
+pre-commit: staged common outdated audit  ## verify everything before commit
 
-pre-publish: .cargo/config.toml  ## publish dry run
+pre-publish: .cargo/config.toml  ## publish dry run (post-commit)
 	cargo publish --dry-run
 
-ci: common pre-publish ## verify everything in a CI server
+on-push: common pre-publish  ## verify a pushed commit in a CI action
 
-publish: ci  ## actually publish
+monthly: outdated audit  ## verify dependencies in a monthly CI action
+
+publish: on-push monthly  ## actually publish
 	cargo publish
 
 tags: $(RS_SOURCES)  ## tags file for vim or Emacs.

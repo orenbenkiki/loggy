@@ -5,31 +5,7 @@
 	"tasks": [
 		{
 			"type": "shell",
-			"command": "make test",
-			"problemMatcher": [
-				"$rustc"
-			],
-			"group": "build",
-			"label": "Rust: make test",
-			"presentation": {
-				"clear": true
-			}
-		},
-		{
-			"type": "shell",
-			"command": "make clippy",
-			"problemMatcher": [
-				"$rustc"
-			],
-			"group": "build",
-			"label": "Rust: make clippy",
-			"presentation": {
-				"clear": true
-			}
-		},
-		{
-			"type": "shell",
-			"command": "make todox",
+			"command": "make todo_x",
 			"presentation": {
 				"revealProblems": "onProblem",
 				"clear": true
@@ -47,11 +23,72 @@
 				]
 			},
 			"group": "build",
-			"label": "Rust: make todox"
+			"label": "Rust: make todo_x"
 		},
 		{
 			"type": "shell",
-			"command": "make ca",
+			"command": "make formatted",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "Rust: make formatted",
+			"presentation": {
+				"clear": true
+			}
+		},
+		{
+			"type": "shell",
+			"command": "make reformat",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "Rust: make reformat",
+			"presentation": {
+				"clear": true
+			}
+		},
+		{
+			"type": "shell",
+			"command": "make smells",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "Rust: make smells",
+			"presentation": {
+				"clear": true
+			}
+		},
+		{
+			"type": "shell",
+			"command": "make build",
+			"presentation": {
+				"revealProblems": "onProblem",
+				"clear": true,
+			},
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "Rust: make build"
+		},
+		{
+			"type": "shell",
+			"command": "make test",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "Rust: make test",
+			"presentation": {
+				"clear": true
+			}
+		},
+		{
+			"type": "shell",
+			"command": "make coverage-annotations",
 			"presentation": {
 				"revealProblems": "onProblem",
 				"clear": true
@@ -73,16 +110,26 @@
 		},
 		{
 			"type": "shell",
-			"command": "make build",
+			"command": "make udeps",
 			"presentation": {
 				"revealProblems": "onProblem",
 				"clear": true,
 			},
-			"problemMatcher": [
-				"$rustc"
-			],
+			"problemMatcher": {
+				"owner": "rust",
+				"fileLocation": "absolute",
+				"pattern": [
+					{
+						"regexp": "^(.*─ \".*\")$",
+						"message": 1,
+						"file": 1,
+						"line": 1,
+						"loop": true,
+					},
+				]
+			},
 			"group": "build",
-			"label": "Rust: make build"
+			"label": "Rust: make udeps"
 		},
 		{
 			"type": "shell",
