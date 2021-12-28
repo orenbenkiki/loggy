@@ -394,13 +394,13 @@ impl Loggy {
         write!(&mut message, " [{}]", level).unwrap();
 
         if record.level() == Level::Debug {
-            // BEGIN APPEARS NOT TESTED
+            // BEGIN MAYBE TESTED
             write!(
-                // END APPEARS NOT TESTED
+                // END MAYBE TESTED
                 &mut message,
                 " {}:{}:",
-                record.file().unwrap(), // APPEARS NOT TESTED
-                record.line().unwrap()  // APPEARS NOT TESTED
+                record.file().unwrap(), // MAYBE TESTED
+                record.line().unwrap()  // MAYBE TESTED
             )
             .unwrap();
         }
@@ -441,7 +441,7 @@ pub fn force_panic() {
 /// Actually emit (or capture) a log message.
 fn emit_message(level: Level, message: &str) {
     if level == Level::Debug {
-        eprint!("{}", message); // APPEARS NOT TESTED
+        eprint!("{}", message); // MAYBE TESTED
         return;
     }
 

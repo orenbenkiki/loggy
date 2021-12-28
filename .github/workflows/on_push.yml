@@ -25,26 +25,17 @@ jobs:
       id: cache
       uses: ./.github/actions/cargo-cache
 
+    - name: Install cargo-todox binary crate
+      run: which cargo-todox || cargo install cargo-todox
+
     - name: Install cargo-tarpaulin binary crate
-      uses: actions-rs/install@v0.1
-      with:
-        crate: cargo-tarpaulin
-        version: latest
-        use-tool-cache: true
+      run: which cargo-tarpaulin || cargo install cargo-tarpaulin
 
     - name: Install cargo-coverage-annotations binary crate
-      uses: actions-rs/install@v0.1
-      with:
-        crate: cargo-coverage-annotations
-        version: latest
-        use-tool-cache: true
+      run: which cargo-coverage-annotations || cargo install cargo-coverage-annotations
 
     - name: Install cargo-udeps binary crate
-      uses: actions-rs/install@v0.1
-      with:
-        crate: cargo-udeps
-        version: latest
-        use-tool-cache: true
+      run: which cargo-udeps || cargo install cargo-udeps
 
     - name: Verify commit
       run: |

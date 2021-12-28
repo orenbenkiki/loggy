@@ -77,10 +77,8 @@ retest: .cargo/config.toml  ## force re-run tests with nocapture
 coverage: .make.coverage  ## generate coverage report
 
 .make.coverage: .make.test
-	mv .cargo/config.toml .cargo/_config.toml
 	rm -f tarpaulin*
 	$(TEST_FLAGS) cargo tarpaulin --skip-clean --out Xml
-	mv .cargo/_config.toml .cargo/config.toml
 	touch $@
 
 coverage-annotations: .make.coverage-annotations  ## check coverage annotations in code

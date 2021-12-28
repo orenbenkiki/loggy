@@ -19,23 +19,15 @@ jobs:
     - name: Check out repository code
       uses: actions/checkout@v2
 
-    - name: Install cargo-outdated binary crate
-      uses: actions-rs/install@v0.1
-      with:
-        crate: cargo-outdated
-        version: latest
-        use-tool-cache: true
-
     - name: Load cargo cache
       id: cache
       uses: ./.github/actions/cargo-cache
 
+    - name: Install cargo-outdated binary crate
+      run: which cargo-outdated || cargo install cargo-outdated
+
     - name: Install cargo-audit binary crate
-      uses: actions-rs/install@v0.1
-      with:
-        crate: cargo-audit
-        version: latest
-        use-tool-cache: true
+      run: which cargo-audit || cargo install cargo-audit
 
     - name: Monthly audit
       run: make monthly
