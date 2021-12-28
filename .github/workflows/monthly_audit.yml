@@ -16,6 +16,10 @@ jobs:
         version: latest
         use-tool-cache: true
 
+    - name: Load cargo cache
+      id: cache
+      uses: ./.github/actions/cargo-cache
+
     - name: Install cargo-audit binary crate
       uses: actions-rs/install@v0.1
       with:

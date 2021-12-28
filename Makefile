@@ -83,6 +83,12 @@ doc: .make.doc  ## generate documentation
 	cargo doc --no-deps # --workspace
 	touch $@
 
+udeps: .make.udeps  ## check for unused dependencies
+	
+.make.udeps: .cargo/config.toml $(TOML_SOURCES) $(RS_SOURCES)
+	cargo +nightly udeps --workspace
+	touch $@
+
 outdated: .make.outdated  ## check all dependencies are up-to-date
 	
 .make.outdated: .cargo/config.toml $(TOML_SOURCES)
@@ -95,7 +101,7 @@ audit: .make.audit  ## audit dependencies for bugs or security issues
 	cargo audit
 	touch $@
 
-common: fmt clippy test ca doc
+common: fmt clippy udeps test ca doc
 
 dev: refmt tags common outdated audit ## verify during development
 
