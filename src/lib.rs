@@ -519,9 +519,9 @@ impl Drop for Capture {
 /// # Panics
 ///
 /// If the actual log is different from the expected log.
-pub fn assert_logs<Code: FnOnce()>(expected_log: &str, code: Code) {
+pub fn assert_logs<Code: FnOnce() -> Result, Result>(expected_log: &str, code: Code) -> Result {
     let _single_test = SINGLE_TEST.lock();
-    do_assert_logs_panics(Some(expected_log), None, code);
+    do_assert_logs_panics(Some(expected_log), None, code).unwrap()
 }
 
 /// Ensure that executing some code will panic with a specific error message (ignoring the log).
@@ -543,7 +543,7 @@ pub fn assert_logs<Code: FnOnce()>(expected_log: &str, code: Code) {
 /// # Panics
 ///
 /// If the code does not panic, or panics with a different message than expected.
-pub fn assert_panics<Code: FnOnce()>(expected_panic: &str, code: Code) {
+pub fn assert_panics<Code: FnOnce() -> Result, Result>(expected_panic: &str, code: Code) {
     let _single_test = SINGLE_TEST.lock();
     do_assert_logs_panics(None, Some(expected_panic), code);
 }
@@ -560,7 +560,11 @@ pub fn assert_panics<Code: FnOnce()>(expected_panic: &str, code: Code) {
 /// # Panics
 ///
 /// If the code does generate the expected log, or does not panic, or panics with a different message than expected.
-pub fn assert_logs_panics<Code: FnOnce()>(expected_log: &str, expected_panic: &str, code: Code) {
+pub fn assert_logs_panics<Code: FnOnce() -> Result, Result>(
+    expected_log: &str,
+    expected_panic: &str,
+    code: Code,
+) {
     let _single_test = SINGLE_TEST.lock();
     do_assert_logs_panics(Some(expected_log), Some(expected_panic), code);
 }
@@ -570,11 +574,11 @@ lazy_static! {
     static ref SINGLE_TEST: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
 }
 
-fn do_assert_logs_panics<Code: FnOnce()>(
+fn do_assert_logs_panics<Code: FnOnce() -> Result, Result>(
     expected_log: Option<&str>,
     expected_panic: Option<&str>,
     code: Code,
-) {
+) -> Option<Result> {
     let _capture = Capture::new();
 
     if let Some(expected_panic) = expected_panic {
@@ -602,9 +606,11 @@ fn do_assert_logs_panics<Code: FnOnce()>(
                 assert_eq!(actual_panic, expected_panic);
             }
         }
+        None
     } else {
-        code();
+        let result = code();
         do_assert_logs(expected_log);
+        Some(result)
     }
 }
 
