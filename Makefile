@@ -8,9 +8,10 @@ CARGO_SOURCES = $(RS_SOURCES) $(TOML_SOURCES)
 
 TEST_FLAGS = RUST_BACKTRACE=1
 
-ifeq ($(wildcard .single_thread_tests),)
-else
-TEST_FLAGS += RUST_TEST_THREADS=1
+TEST_EXTRA_FLAGS = -- --nocapture
+
+ifneq ($(wildcard .single-thread-tests),)
+TEST_EXTRA_FLAGS += --test-threads 1
 endif
 
 define PRINT_HELP_PYSCRIPT
@@ -73,17 +74,17 @@ build: .make.build  ## build everything
 test: .make.test  ## run tests
 
 .make.test: .cargo/config.toml .make.build
-	$(TEST_FLAGS) cargo test -- --nocapture
+	$(TEST_FLAGS) cargo test $(TEST_EXTRA_FLAGS)
 	touch $@
 
 retest: .cargo/config.toml  ## force re-run tests with nocapture
-	$(TEST_FLAGS) cargo test -- --nocapture
+	$(TEST_FLAGS) cargo test $(TEST_EXTRA_FLAGS)
 
 coverage: .make.coverage  ## generate coverage report
 
 .make.coverage: .make.test
 	rm -f tarpaulin*
-	$(TEST_FLAGS) cargo tarpaulin --skip-clean --out Xml
+	$(TEST_FLAGS) cargo tarpaulin --skip-clean --out Xml $(TEST_EXTRA_FLAGS)
 	touch $@
 
 ifeq ($(wildcard .no-coverage-annotations),)

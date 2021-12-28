@@ -603,7 +603,14 @@ fn do_assert_logs_panics<Code: FnOnce() -> Result, Result>(
                     "unknown panic" // NOT TESTED
                 };
                 let expected_panic = fix_expected(expected_panic);
-                assert_eq!(actual_panic, expected_panic);
+                if actual_panic != expected_panic {
+                    // BEGIN NOT TESTED
+                    print!(
+                        "ACTUAL PANIC:\n>>>\n{}<<<\nIS DIFFERENT FROM EXPECTED PANIC:\n>>>\n{}<<<\n",
+                        actual_panic, expected_panic
+                    );
+                    assert_eq!("ACTUAL PANIC", "EXPECTED PANIC");
+                } // END NOT TESTED
             }
         }
         None
@@ -641,7 +648,15 @@ pub fn assert_writes<Code: FnOnce(&mut dyn IoWrite)>(expected_string: &str, code
     code(&mut actual_bytes);
     let actual_string = String::from_utf8(actual_bytes).ok().unwrap();
     let expected_string = fix_expected(expected_string);
-    assert_eq!(actual_string, expected_string);
+    if actual_string != expected_string {
+        // BEGIN NOT TESTED
+        print!(
+            "ACTUAL WRITTEN:\n>>>\n{}<<<\nIS DIFFERENT FROM EXPECTED WRITTEN:\n>>>\n{}<<<\n",
+            actual_string, expected_string
+        );
+        assert_eq!("ACTUAL WRITTEN", "EXPECTED WRITTEN");
+        // END NOT TESTED
+    }
 }
 
 fn fix_expected(expected: &str) -> String {
