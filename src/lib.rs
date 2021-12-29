@@ -306,10 +306,7 @@ thread_local!(
     static FORCE_PANIC: Cell<bool> = Cell::new(false);
 );
 
-// BEGIN APPEARS NOT TESTED
 impl Log for Loggy {
-    // END APPEARS NOT TESTED
-
     fn enabled(&self, metadata: &Metadata<'_>) -> bool {
         metadata.level() == Level::Error
             || metadata.level() == Level::Debug
