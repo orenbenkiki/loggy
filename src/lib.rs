@@ -27,8 +27,8 @@ use std::sync::atomic::AtomicBool;
 use std::thread::panicking;
 use unindent::unindent;
 
-/// The current crate version: 0.5.1-dev;
-pub const VERSION: &str = "0.5.1-dev";
+/// The current crate version: 0.5.1
+pub const VERSION: &str = "0.5.1";
 
 /// Log a structured message.
 ///

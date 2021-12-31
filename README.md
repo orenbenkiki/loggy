@@ -1,4 +1,4 @@
-# loggy v0.5.1-dev
+# loggy v0.5.1
 [![Verify](https://github.com/orenbenkiki/loggy/actions/workflows/on_push.yml/badge.svg)](https://github.com/orenbenkiki/loggy/actions/workflows/on_push.yml) [![Monthly audit](https://github.com/orenbenkiki/loggy/actions/workflows/monthly_audit.yml/badge.svg)](https://github.com/orenbenkiki/loggy/actions/workflows/on_updated_dependencies.yml) [![codecov](https://codecov.io/gh/orenbenkiki/loggy/branch/master/graph/badge.svg)](https://codecov.io/gh/orenbenkiki/loggy) [![Api Docs](https://docs.rs/loggy/badge.svg)](https://docs.rs/crate/loggy)
 
 An opinionated library for developing and testing rust applications that use logging.
