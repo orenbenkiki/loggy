@@ -148,7 +148,7 @@ tags: $(RS_SOURCES)  ## tags file for vim or Emacs.
 
 clobber:  ## remove all generated files
 	rm -f .make.* tags
-	rm -rf .cargo target
+	rm -rf .cargo target macros/target
 
 clean:  ## remove generated files except for dependencies
 	rm -f .make.* tags tarpaulin*
