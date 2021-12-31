@@ -27,6 +27,9 @@ use std::sync::atomic::AtomicBool;
 use std::thread::panicking;
 use unindent::unindent;
 
+/// The current crate version: 0.5.1-dev;
+pub const VERSION: &str = "0.5.1-dev";
+
 /// Log a structured message.
 ///
 /// Usage: `log!(level, "some text {}", 1; field => value, label { sub_field => value }, ...)` results in

@@ -99,13 +99,13 @@ endif
 
 doc: .make.doc  ## generate documentation
 	
-.make.doc: .cargo/config.toml $(ALL_SOURCES)
+.make.doc: .cargo/config.toml $(CARGO_SOURCES) README.md
 	cargo doc --no-deps # --workspace
 	touch $@
 
 udeps: .make.udeps  ## check for unused dependencies
 	
-.make.udeps: .cargo/config.toml $(TOML_SOURCES) $(RS_SOURCES)
+.make.udeps: .cargo/config.toml $(CARGO_SOURCES)
 	cargo +nightly udeps --workspace --all-targets
 	touch $@
 
@@ -128,7 +128,7 @@ dev: reformat tags common outdated audit  ## verify during development
 staged:  ## check everything is staged for git commit
 	@if git status . | grep -q 'Changes not staged\|Untracked files'; then git status; false; else true; fi
 
-pre-commit: staged common outdated audit  ## verify everything before commit
+pre-commit: tags common staged outdated audit  ## verify everything before commit
 
 pre-publish: .make.pre-publish  ## publish dry run (post-commit, pre-push)
 

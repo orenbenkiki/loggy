@@ -61,7 +61,7 @@ dependencies = [
 
 [[package]]
 name = "loggy"
-version = "0.5.1"
+version = "0.5.1-dev"
 dependencies = [
  "lazy_static",
  "log",
