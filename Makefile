@@ -36,7 +36,7 @@ endif
 
 TODO = todo$()x
 
-.make.todo-x: $(TODO_X_SOURCES) # ALLOW TODOX
+.make.todo-x: $(ALL_SOURCES)
 	cargo $(TODO)
 	touch $@
 
