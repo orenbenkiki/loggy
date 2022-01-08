@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate loggy;
 
-use loggy::{assert_logs, assert_logs_panics, assert_panics, assert_writes, Scope};
+use loggy::{assert_errors, assert_logs, assert_logs_panics, assert_panics, assert_writes, Scope};
 use std::thread;
 
 #[test]
@@ -20,15 +20,7 @@ fn panic_inside_scope_is_captured() {
 
 #[test]
 fn error_inside_scope_is_captured() {
-    assert_logs_panics(
-        "test: [ERROR] scope: error\n",
-        "test: [ERROR] scope: failed with 1 error(s)",
-        || {
-            Scope::with("scope", || {
-                error!("error");
-            });
-        },
-    );
+    assert_errors("scope", "test: [ERROR] scope: error\n", || error!("error"));
 }
 
 #[test]

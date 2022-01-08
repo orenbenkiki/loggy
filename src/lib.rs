@@ -574,6 +574,37 @@ pub fn assert_logs_panics<Code: FnOnce() -> Result, Result>(
     do_assert_logs_panics(Some(expected_log), Some(expected_panic), code);
 }
 
+/// Similar to [`assert_logs_panics`], asserting that the `code` will generate one or more error messages, which will
+/// trigger a panic at the end of the `scope`.
+///
+/// # Notes
+///
+/// The rust `log` facade mandates using a single global logger. Therefore, only one test can capture the log at any
+/// given time, using a a global `Mutex`. Therefore, nesting this inside itself, [`assert_panics`] or
+/// [`assert_logs_panics`] will deadlock.
+///
+/// # Panics
+///
+/// If the code does generate the expected log, or the log does not contain errors (so the code does not panic).
+pub fn assert_errors<Code: FnOnce() -> Result, Result>(
+    scope: &str,
+    expected_log: &str,
+    code: Code,
+) {
+    let expected_errors = expected_log.matches("[ERROR]").count();
+    assert!(expected_errors > 0, "expected log contains no errors");
+    assert_logs_panics(
+        expected_log, // FLAKY TESTED
+        format!(
+            "test: [ERROR] {}: failed with {} error(s)", // FLAKY TESTED
+            scope,                                       // FLAKY TESTED
+            expected_errors                              // FLAKY TESTED
+        )
+        .as_str(), // FLAKY TESTED
+        || Scope::with(scope, code),
+    );
+}
+
 fn do_assert_logs_panics<Code: FnOnce() -> Result, Result>(
     expected_log: Option<&str>,
     expected_panic: Option<&str>,
