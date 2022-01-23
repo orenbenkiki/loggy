@@ -19,6 +19,15 @@ fn panic_inside_scope_is_captured() {
 }
 
 #[test]
+fn panic_inside_indexed_scope_is_captured() {
+    assert_panics("test: [ERROR] scope@7: foo\n", || {
+        Scope::with_indexed("scope", 7, || {
+            panic!("foo");
+        });
+    });
+}
+
+#[test]
 fn error_inside_scope_is_captured() {
     assert_errors("scope", "test: [ERROR] scope: error\n", || error!("error"));
 }
@@ -53,6 +62,15 @@ fn emit_structured_log_messages() {
 fn named_scope_should_replace_module() {
     assert_logs("test: [WARN] scope: warning\n", || {
         Scope::with("scope", || {
+            warn!("warning");
+        })
+    });
+}
+
+#[test]
+fn named_indexed_scope_should_replace_module() {
+    assert_logs("test: [WARN] scope@7: warning\n", || {
+        Scope::with_indexed("scope", 7, || {
             warn!("warning");
         })
     });

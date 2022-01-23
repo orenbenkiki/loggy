@@ -225,6 +225,9 @@ struct NamedScope {
     /// The scope name (to replace the module name in the messages).
     name: &'static str,
 
+    /// An index (to follow the scope name, if given).
+    index: Option<isize>,
+
     /// The number of errors we've seen in the scope.
     errors: usize,
 }
@@ -250,6 +253,24 @@ impl<'a> Scope<'a> {
         let static_name_ref: &'static str = unsafe { &*name_ptr };
         let next: NamedScope = NamedScope {
             name: static_name_ref,
+            index: None,
+            errors: 0,
+        };
+        let previous = NAMED_SCOPE.with(|named_scope| named_scope.replace(Some(next)));
+        Scope {
+            previous,
+            name_lifetime: PhantomData,
+        }
+    }
+
+    /// Create a new logging scope with an index.
+    #[must_use]
+    pub fn new_indexed(name: &'a str, index: isize) -> Self {
+        let name_ptr: *const str = name;
+        let static_name_ref: &'static str = unsafe { &*name_ptr };
+        let next: NamedScope = NamedScope {
+            name: static_name_ref,
+            index: Some(index),
             errors: 0,
         };
         let previous = NAMED_SCOPE.with(|named_scope| named_scope.replace(Some(next)));
@@ -264,6 +285,12 @@ impl<'a> Scope<'a> {
         let _scope = Scope::new(name);
         code()
     }
+
+    /// Execute some code with in a named indexed scope.
+    pub fn with_indexed<T, Code: FnOnce() -> T>(name: &'a str, index: isize, code: Code) -> T {
+        let _scope = Scope::new_indexed(name, index);
+        code()
+    }
 }
 
 impl<'a> Drop for Scope<'a> {
@@ -272,12 +299,24 @@ impl<'a> Drop for Scope<'a> {
             .with(|named_scope| named_scope.replace(self.previous))
             .unwrap();
         if current.errors > 0 && !panicking() {
-            std::panic!(
-                "{}: [ERROR] {}: failed with {} error(s)",
-                Loggy::global().prefix,
-                current.name,
-                current.errors
-            );
+            if let Some(index) = current.index {
+                // BEGIN NOT TESTED
+                std::panic!(
+                    "{}: [ERROR] {}@{}: failed with {} error(s)",
+                    Loggy::global().prefix,
+                    current.name,
+                    index,
+                    current.errors
+                );
+                // END NOT TESTED
+            } else {
+                std::panic!(
+                    "{}: [ERROR] {}: failed with {} error(s)",
+                    Loggy::global().prefix,
+                    current.name,
+                    current.errors
+                );
+            }
         }
     }
 }
@@ -405,12 +444,17 @@ impl Loggy {
             .unwrap();
         }
 
-        let scope = NAMED_SCOPE.with(|named_scope| match named_scope.get() {
-            None => record.module_path().unwrap(),
-            Some(scope) => scope.name,
+        let (scope, index) = NAMED_SCOPE.with(|named_scope| match named_scope.get() {
+            None => (record.module_path().unwrap(), None),
+            Some(scope) => (scope.name, scope.index),
         });
+
         if !scope.is_empty() {
-            write!(&mut message, " {}:", scope).unwrap();
+            if let Some(index) = index {
+                write!(&mut message, " {}@{}:", scope, index).unwrap();
+            } else {
+                write!(&mut message, " {}:", scope).unwrap();
+            }
         }
     }
 }
