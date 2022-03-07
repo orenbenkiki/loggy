@@ -299,24 +299,27 @@ impl<'a> Drop for Scope<'a> {
             .with(|named_scope| named_scope.replace(self.previous))
             .unwrap();
         if current.errors > 0 && !panicking() {
-            if let Some(index) = current.index {
-                // BEGIN NOT TESTED
-                std::panic!(
-                    "{}: [ERROR] {}@{}: failed with {} error(s)",
-                    Loggy::global().prefix,
-                    current.name,
-                    index,
-                    current.errors
-                );
-                // END NOT TESTED
-            } else {
-                std::panic!(
-                    "{}: [ERROR] {}: failed with {} error(s)",
-                    Loggy::global().prefix,
-                    current.name,
-                    current.errors
-                );
-            }
+            current.index.map_or_else(
+                || {
+                    std::panic!(
+                        "{}: [ERROR] {}: failed with {} error(s)", // FLAKY TESTED
+                        Loggy::global().prefix,
+                        current.name,   // FLAKY TESTED
+                        current.errors  // FLAKY TESTED
+                    );
+                },
+                |index| {
+                    // BEGIN NOT TESTED
+                    std::panic!(
+                        "{}: [ERROR] {}@{}: failed with {} error(s)",
+                        Loggy::global().prefix,
+                        current.name,
+                        index,
+                        current.errors
+                    );
+                    // END NOT TESTED
+                },
+            );
         }
     }
 }
@@ -668,6 +671,7 @@ fn do_assert_logs_panics<Code: FnOnce() -> Result, Result>(
             Ok(_) => std::panic!("test did not panic"), // NOT TESTED
 
             Err(error) => {
+                #[allow(clippy::option_if_let_else)]
                 let actual_panic = if let Some(actual_panic) = error.downcast_ref::<String>() {
                     actual_panic.as_str()
                 // BEGIN NOT TESTED
