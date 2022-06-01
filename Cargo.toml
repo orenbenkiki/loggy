@@ -14,7 +14,7 @@ version = "0.5.2-dev"
 lazy_static = "^1.4.0"
 log = "^0.4.16"
 parking_lot = "^0.12.0"
-unindent = "^0.1.8"
+unindent = "^0.1.9"
 
 [dependencies.loggy-macros]
 path = "macros"
