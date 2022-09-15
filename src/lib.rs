@@ -30,6 +30,8 @@ use unindent::unindent;
 /// The current crate version: 0.5.2-dev
 pub const VERSION: &str = "0.5.2-dev";
 
+// BEGIN FLAKY TESTED
+
 /// Log a structured message.
 ///
 /// Usage: `log!(level, "some text {}", 1; field => value, label { sub_field => value }, ...)` results in
@@ -218,6 +220,8 @@ macro_rules! is_an_error {
         }
     };
 }
+
+// END FLAKY TESTED
 
 /// A named scope for log messages and [`error`]s.
 #[derive(Clone, Copy)]
@@ -462,7 +466,7 @@ impl Loggy {
     }
 }
 
-lazy_static! {
+lazy_static! { // FLAKY TESTED
     /// The buffer capturing the log messages for assertions.
     static ref LOG_BUFFER: Mutex<Cell<Option<String>>> = Mutex::new(Cell::new(None));
 
@@ -478,7 +482,7 @@ lazy_static! {
 static DID_SET_LOGGER: AtomicBool = AtomicBool::new(false);
 
 /// Force the next error-level message to be emitted as a panic.
-#[doc(hidden)]
+#[doc(hidden)] // FLAKY TESTED
 pub fn force_panic() {
     FORCE_PANIC.with(|force_panic| {
         force_panic.set(true);
@@ -488,8 +492,8 @@ pub fn force_panic() {
 /// Actually emit (or capture) a log message.
 fn emit_message(level: Level, message: &str) {
     if level == Level::Debug {
-        eprint!("{}", message); // MAYBE TESTED
-        return;
+        eprint!("{}", message); // FLAKY TESTED
+        return; // FLAKY TESTED
     }
 
     if level == Level::Error {
@@ -502,7 +506,7 @@ fn emit_message(level: Level, message: &str) {
                     maybe_named_scope.set(Some(*named_scope));
                 } else {
                     std::panic!(
-                        "{}: error! called outside a named scope",
+                        "{}: error! called outside a named scope", // FLAKY TESTED
                         Loggy::global().prefix,
                     );
                 }
@@ -529,9 +533,9 @@ impl Capture {
     fn new() -> Self {
         if !DID_SET_LOGGER.swap(true, std::sync::atomic::Ordering::Relaxed) {
             set_logger(&Loggy {
-                prefix: "test",
-                show_time: false,
-                show_thread: false,
+                prefix: "test",     // FLAKY TESTED
+                show_time: false,   // FLAKY TESTED
+                show_thread: false, // FLAKY TESTED
             })
             .unwrap();
             set_max_level(LevelFilter::Trace);
@@ -552,7 +556,7 @@ impl Drop for Capture {
     }
 }
 
-lazy_static! {
+lazy_static! { // FLAKY TESTED
     /// Ensure there is only a single test which is capturing log entries.
     static ref SINGLE_TEST: Mutex<()> = Mutex::new(());
 }
@@ -674,13 +678,13 @@ fn do_assert_logs_panics<Code: FnOnce() -> Result, Result>(
                 #[allow(clippy::option_if_let_else)]
                 let actual_panic = if let Some(actual_panic) = error.downcast_ref::<String>() {
                     actual_panic.as_str()
-                // BEGIN NOT TESTED
+                // BEGIN FLAKY TESTED
                 } else if let Some(actual_panic) = error.downcast_ref::<&'static str>() {
                     actual_panic
-                // END NOT TESTED
                 } else {
-                    "unknown panic" // NOT TESTED
+                    "unknown panic"
                 };
+                // END FLAKY TESTED
                 let expected_panic = fix_expected(expected_panic);
                 if actual_panic != expected_panic {
                     // BEGIN NOT TESTED
@@ -728,13 +732,13 @@ pub fn assert_writes<Code: FnOnce(&mut dyn IoWrite)>(expected_string: &str, code
     let actual_string = String::from_utf8(actual_bytes).ok().unwrap();
     let expected_string = fix_expected(expected_string);
     if actual_string != expected_string {
-        // BEGIN NOT TESTED
+        // BEGIN FLAKY TESTED
         print!(
             "ACTUAL WRITTEN:\n>>>\n{}<<<\nIS DIFFERENT FROM EXPECTED WRITTEN:\n>>>\n{}<<<\n",
             actual_string, expected_string
         );
         assert_eq!("ACTUAL WRITTEN", "EXPECTED WRITTEN");
-        // END NOT TESTED
+        // END FLAKY TESTED
     }
 }
 

@@ -147,11 +147,11 @@ tags: $(RS_SOURCES)  ## tags file for vim or Emacs.
 	ctags --recurse .
 
 clobber:  ## remove all generated files
-	rm -f .make.* tags
+	rm -f .make.* tags cobertura.xml
 	rm -rf .cargo target macros/target
 
 clean:  ## remove generated files except for dependencies
-	rm -f .make.* tags tarpaulin*
+	rm -f .make.* tags tarpaulin* cobertura.xml
 	rm -rf .cargo `find target -name '*clacks*'`
 
 .cargo/config.toml:
