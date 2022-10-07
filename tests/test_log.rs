@@ -1,7 +1,10 @@
 #[macro_use]
 extern crate loggy;
 
-use loggy::{assert_errors, assert_logs, assert_logs_panics, assert_panics, assert_writes, Scope};
+use loggy::{
+    assert_errors, assert_logs, assert_logs_panics, assert_panics, assert_writes, scope_errors,
+    Scope,
+};
 use std::thread;
 
 #[test]
@@ -36,6 +39,20 @@ fn error_inside_scope_is_captured() {
 fn error_outside_scope_is_panic() {
     assert_panics("test: error! called outside a named scope", || {
         error!("outsider");
+    });
+}
+
+#[test]
+fn scope_errors_outside_scope() {
+    assert_eq!(scope_errors(), 0);
+}
+
+#[test]
+fn scope_errors_inside_scope() {
+    assert_errors("scope", "test: [ERROR] scope: error\n", || {
+        assert_eq!(scope_errors(), 0);
+        error!("error");
+        assert_eq!(scope_errors(), 1);
     });
 }
 

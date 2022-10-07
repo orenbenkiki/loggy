@@ -236,8 +236,18 @@ struct NamedScope {
     errors: usize,
 }
 
-thread_local! {
+thread_local! { // FLAKY TESTED
     static NAMED_SCOPE: Cell<Option<NamedScope>> = Cell::new(None);
+}
+
+/// How many errors were seen so far in the current [`Scope`] (or 0 if outside one).
+#[must_use] // FLAKY TESTED
+pub fn scope_errors() -> usize {
+    NAMED_SCOPE.with(|named_scope| {
+        named_scope
+            .get() // FLAKY TESTED
+            .map_or(0, |named_scope| named_scope.errors)
+    })
 }
 
 /// An RAII scope for log messages and [`error`]s.
@@ -251,7 +261,7 @@ pub struct Scope<'a> {
 
 impl<'a> Scope<'a> {
     /// Create a new logging scope.
-    #[must_use]
+    #[must_use] // FLAKY TESTED
     pub fn new(name: &'a str) -> Self {
         let name_ptr: *const str = name;
         let static_name_ref: &'static str = unsafe { &*name_ptr };
@@ -351,6 +361,7 @@ lazy_static! {
 static TOTAL_THREADS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 thread_local!(
+    // FLAKY TESTED
     static THREAD_ID: Cell<Option<usize>> = Cell::new(None);
     static FORCE_PANIC: Cell<bool> = Cell::new(false);
 );
@@ -479,7 +490,7 @@ lazy_static! { // FLAKY TESTED
 }
 
 /// Whether we already setup loggy as the global logger.
-static DID_SET_LOGGER: AtomicBool = AtomicBool::new(false);
+static DID_SET_LOGGER: AtomicBool = AtomicBool::new(false); // FLAKY TESTED
 
 /// Force the next error-level message to be emitted as a panic.
 #[doc(hidden)] // FLAKY TESTED
@@ -672,7 +683,7 @@ fn do_assert_logs_panics<Code: FnOnce() -> Result, Result>(
         do_assert_logs(expected_log);
 
         match result {
-            Ok(_) => std::panic!("test did not panic"), // NOT TESTED
+            Ok(_) => std::panic!("test did not panic"), // FLAKY NOT TESTED
 
             Err(error) => {
                 #[allow(clippy::option_if_let_else)]
