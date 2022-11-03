@@ -361,7 +361,6 @@ lazy_static! {
 static TOTAL_THREADS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 thread_local!(
-    // FLAKY TESTED
     static THREAD_ID: Cell<Option<usize>> = Cell::new(None);
     static FORCE_PANIC: Cell<bool> = Cell::new(false);
 );
@@ -405,7 +404,7 @@ impl Loggy {
                 .unwrap()
             // END NOT TESTED
         } else {
-            "".to_string()
+            String::new()
         };
 
         let mut message = String::with_capacity(128);
@@ -451,20 +450,23 @@ impl Loggy {
         write!(&mut message, " [{}]", level).unwrap();
 
         if record.level() == Level::Debug {
-            // BEGIN MAYBE TESTED
+            // BEGIN FLAKY TESTED
             write!(
-                // END MAYBE TESTED
+                // END FLAKY TESTED
                 &mut message,
                 " {}:{}:",
-                record.file().unwrap(), // MAYBE TESTED
-                record.line().unwrap()  // MAYBE TESTED
+                record.file().unwrap(), // FLAKY TESTED
+                record.line().unwrap()  // FLAKY TESTED
             )
             .unwrap();
         }
 
-        let (scope, index) = NAMED_SCOPE.with(|named_scope| match named_scope.get() {
-            None => (record.module_path().unwrap(), None),
-            Some(scope) => (scope.name, scope.index),
+        let (scope, index) = NAMED_SCOPE.with(|named_scope| {
+            named_scope
+                .get() // FLAKY TESTED
+                .map_or((record.module_path().unwrap(), None), |scope| {
+                    (scope.name, scope.index)
+                })
         });
 
         if !scope.is_empty() {
@@ -483,10 +485,10 @@ lazy_static! { // FLAKY TESTED
 
     /// Whether to mirror captured log messages to stderr.
     static ref MIRROR_TO_STDERR: bool = std::env::var("LOGGY_MIRROR_TO_STDERR")
-        // BEGIN MAYBE TESTED
+        // BEGIN FLAKY TESTED
         .map(|var| !var.is_empty())
         .unwrap_or(false);
-    // END MAYBE TESTED
+    // END FLAKY TESTED
 }
 
 /// Whether we already setup loggy as the global logger.
@@ -526,15 +528,15 @@ fn emit_message(level: Level, message: &str) {
     }
 
     let mut log_buffer = LOG_BUFFER.lock();
-    match log_buffer.get_mut() {
-        None => eprint!("{}", message), // NOT TESTED
-        Some(buffer) => {
+    log_buffer.get_mut().as_mut().map_or_else(
+        || eprint!("{}", message),
+        |buffer| {
             if *MIRROR_TO_STDERR {
-                eprint!("{}", message); // MAYBE TESTED
+                eprint!("{}", message); // FLAKY TESTED
             }
             buffer.push_str(message);
-        }
-    }
+        },
+    );
 }
 
 /// RAII for capturing the log content.
@@ -683,7 +685,7 @@ fn do_assert_logs_panics<Code: FnOnce() -> Result, Result>(
         do_assert_logs(expected_log);
 
         match result {
-            Ok(_) => std::panic!("test did not panic"), // FLAKY NOT TESTED
+            Ok(_) => std::panic!("test did not panic"), // FLAKY TESTED
 
             Err(error) => {
                 #[allow(clippy::option_if_let_else)]
