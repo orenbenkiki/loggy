@@ -352,7 +352,7 @@ pub struct Loggy {
     pub show_thread: bool,
 }
 
-lazy_static! {
+lazy_static! { // FLAKY TESTED
     /// The format to use for the time in emitted log messages.
     static ref TIME_FORMAT: Vec<time::format_description::FormatItem<'static>> =
         time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap(); // NOT TESTED
