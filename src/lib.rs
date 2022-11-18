@@ -582,7 +582,7 @@ lazy_static! { // FLAKY TESTED
 /// # Notes
 ///
 /// The rust `log` facade mandates using a single global logger. Therefore, only one test can capture the log at any
-/// given time, using a a global `Mutex`. Therefore, nesting this inside itself, [`assert_panics`] or
+/// given time, using a global `Mutex`. Therefore, nesting this inside itself, [`assert_panics`] or
 /// [`assert_logs_panics`] will deadlock.
 ///
 /// # Panics
@@ -606,7 +606,7 @@ pub fn assert_logs<Code: FnOnce() -> Result, Result>(expected_log: &str, code: C
 /// # Notes
 ///
 /// The rust `log` facade mandates using a single global logger. Therefore, only one test can capture the log at any
-/// given time, using a a global `Mutex`. Therefore, nesting this inside itself, [`assert_logs`] or
+/// given time, using a global `Mutex`. Therefore, nesting this inside itself, [`assert_logs`] or
 /// [`assert_logs_panics`] will deadlock.
 ///
 /// # Panics
@@ -623,7 +623,7 @@ pub fn assert_panics<Code: FnOnce() -> Result, Result>(expected_panic: &str, cod
 /// # Notes
 ///
 /// The rust `log` facade mandates using a single global logger. Therefore, only one test can capture the log at any
-/// given time, using a a global `Mutex`. Therefore, nesting this inside itself, [`assert_panics`] or
+/// given time, using a global `Mutex`. Therefore, nesting this inside itself, [`assert_panics`] or
 /// [`assert_logs_panics`] will deadlock.
 ///
 /// # Panics
@@ -644,7 +644,7 @@ pub fn assert_logs_panics<Code: FnOnce() -> Result, Result>(
 /// # Notes
 ///
 /// The rust `log` facade mandates using a single global logger. Therefore, only one test can capture the log at any
-/// given time, using a a global `Mutex`. Therefore, nesting this inside itself, [`assert_panics`] or
+/// given time, using a global `Mutex`. Therefore, nesting this inside itself, [`assert_panics`] or
 /// [`assert_logs_panics`] will deadlock.
 ///
 /// # Panics
