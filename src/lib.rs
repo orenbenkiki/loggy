@@ -28,8 +28,8 @@ use std::sync::atomic::AtomicBool;
 use std::thread::panicking;
 use unindent::unindent;
 
-/// The current crate version: 0.5.3-dev
-pub const VERSION: &str = "0.5.3-dev";
+/// The current crate version: 0.5.3
+pub const VERSION: &str = "0.5.3";
 
 // BEGIN FLAKY TESTED
 
