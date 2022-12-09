@@ -15,6 +15,7 @@
 
 pub use loggy_macros::scope;
 
+use chrono::Utc;
 use lazy_static::lazy_static;
 use log::{logger, set_logger, set_max_level, Level, LevelFilter, Log, Metadata, Record};
 use parking_lot::Mutex;
@@ -352,12 +353,6 @@ pub struct Loggy {
     pub show_thread: bool,
 }
 
-lazy_static! { // FLAKY TESTED
-    /// The format to use for the time in emitted log messages.
-    static ref TIME_FORMAT: Vec<time::format_description::FormatItem<'static>> =
-        time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap(); // NOT TESTED
-}
-
 static TOTAL_THREADS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 thread_local!(
@@ -397,12 +392,7 @@ impl Loggy {
 
     fn format_message(&self, record: &Record<'_>) -> String {
         let now = if self.show_time {
-            // BEGIN NOT TESTED
-            time::OffsetDateTime::now_local()
-                .unwrap()
-                .format(&TIME_FORMAT)
-                .unwrap()
-            // END NOT TESTED
+            format!("{}", Utc::now().format("%F %T%.3f")) // NOT TESTED
         } else {
             String::new()
         };

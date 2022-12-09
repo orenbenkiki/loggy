@@ -117,8 +117,9 @@ outdated: .make.outdated  ## check all dependencies are up-to-date
 
 audit: .make.audit  ## audit dependencies for bugs or security issues
 	
+# TODO: Remove this when updating to chrono 0.5, whenever that comes out.
 .make.audit: .cargo/config.toml $(TOML_SOURCES)
-	cargo audit
+	cargo audit --ignore RUSTSEC-2020-0071
 	touch $@
 
 common: todo-x formatted smells udeps coverage-annotations doc
