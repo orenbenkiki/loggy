@@ -407,7 +407,7 @@ impl Loggy {
                 level = level.to_lowercase();
             }
             self.append_prefix(&mut buffer, now.as_ref(), level.as_ref(), record);
-            writeln!(&mut buffer, " {}", line).unwrap();
+            writeln!(&mut buffer, " {line}").unwrap();
         }
 
         buffer
@@ -425,7 +425,7 @@ impl Loggy {
                     thread_id_cell.set(Some(total_threads));
                 }
                 let current_thread_id = thread_id_cell.get().unwrap();
-                write!(&mut message, "[{}]", current_thread_id).unwrap();
+                write!(&mut message, "[{current_thread_id}]").unwrap();
             });
             // END NOT TESTED
         }
@@ -437,7 +437,7 @@ impl Loggy {
             message.push_str(now); // NOT TESTED
         }
 
-        write!(&mut message, " [{}]", level).unwrap();
+        write!(&mut message, " [{level}]").unwrap();
 
         if record.level() == Level::Debug {
             // BEGIN FLAKY TESTED
@@ -461,9 +461,9 @@ impl Loggy {
 
         if !scope.is_empty() {
             if let Some(index) = index {
-                write!(&mut message, " {}@{}:", scope, index).unwrap();
+                write!(&mut message, " {scope}@{index}:").unwrap();
             } else {
-                write!(&mut message, " {}:", scope).unwrap();
+                write!(&mut message, " {scope}:").unwrap();
             }
         }
     }
@@ -495,13 +495,13 @@ pub fn force_panic() {
 /// Actually emit (or capture) a log message.
 fn emit_message(level: Level, message: &str) {
     if level == Level::Debug {
-        eprint!("{}", message); // FLAKY TESTED
+        eprint!("{message}"); // FLAKY TESTED
         return; // FLAKY TESTED
     }
 
     if level == Level::Error {
         if FORCE_PANIC.with(|force_panic| force_panic.replace(false)) {
-            std::panic!("{}", message);
+            std::panic!("{message}");
         } else {
             NAMED_SCOPE.with(|maybe_named_scope| {
                 if let Some(ref mut named_scope) = maybe_named_scope.get() {
@@ -519,10 +519,10 @@ fn emit_message(level: Level, message: &str) {
 
     let mut log_buffer = LOG_BUFFER.lock();
     log_buffer.get_mut().as_mut().map_or_else(
-        || eprint!("{}", message),
+        || eprint!("{message}"),
         |buffer| {
             if *MIRROR_TO_STDERR {
-                eprint!("{}", message); // FLAKY TESTED
+                eprint!("{message}"); // FLAKY TESTED
             }
             buffer.push_str(message);
         },
@@ -649,12 +649,7 @@ pub fn assert_errors<Code: FnOnce() -> Result, Result>(
     assert!(expected_errors > 0, "expected log contains no errors");
     assert_logs_panics(
         expected_log, // FLAKY TESTED
-        format!(
-            "test: [ERROR] {}: failed with {} error(s)", // FLAKY TESTED
-            scope,                                       // FLAKY TESTED
-            expected_errors                              // FLAKY TESTED
-        )
-        .as_str(), // FLAKY TESTED
+        format!("test: [ERROR] {scope}: failed with {expected_errors} error(s)").as_str(), // FLAKY TESTED
         || Scope::with(scope, code),
     );
 }
@@ -691,10 +686,7 @@ fn do_assert_logs_panics<Code: FnOnce() -> Result, Result>(
                 let expected_panic = fix_expected(expected_panic);
                 if actual_panic != expected_panic {
                     // BEGIN NOT TESTED
-                    print!(
-                        "ACTUAL PANIC:\n>>>\n{}<<<\nIS DIFFERENT FROM EXPECTED PANIC:\n>>>\n{}<<<\n",
-                        actual_panic, expected_panic
-                    );
+                    print!("ACTUAL PANIC:\n>>>\n{actual_panic}<<<\nIS DIFFERENT FROM EXPECTED PANIC:\n>>>\n{expected_panic}<<<\n");
                     assert_eq!("ACTUAL PANIC", "EXPECTED PANIC");
                 } // END NOT TESTED
             }
@@ -713,10 +705,7 @@ fn do_assert_logs(expected_log: Option<&str>) {
         let expected_log = fix_expected(expected_log);
         if actual_log != expected_log {
             // BEGIN NOT TESTED
-            print!(
-                "ACTUAL LOG:\n>>>\n{}<<<\nIS DIFFERENT FROM EXPECTED LOG:\n>>>\n{}<<<\n",
-                actual_log, expected_log
-            );
+            print!("ACTUAL LOG:\n>>>\n{actual_log}<<<\nIS DIFFERENT FROM EXPECTED LOG:\n>>>\n{expected_log}<<<\n");
             assert_eq!("ACTUAL LOG", "EXPECTED LOG");
         } // END NOT TESTED
     }
@@ -736,10 +725,7 @@ pub fn assert_writes<Code: FnOnce(&mut dyn IoWrite)>(expected_string: &str, code
     let expected_string = fix_expected(expected_string);
     if actual_string != expected_string {
         // BEGIN FLAKY TESTED
-        print!(
-            "ACTUAL WRITTEN:\n>>>\n{}<<<\nIS DIFFERENT FROM EXPECTED WRITTEN:\n>>>\n{}<<<\n",
-            actual_string, expected_string
-        );
+        print!("ACTUAL WRITTEN:\n>>>\n{actual_string}<<<\nIS DIFFERENT FROM EXPECTED WRITTEN:\n>>>\n{expected_string}<<<\n");
         assert_eq!("ACTUAL WRITTEN", "EXPECTED WRITTEN");
         // END FLAKY TESTED
     }
@@ -750,8 +736,8 @@ fn fix_expected(expected: &str) -> String {
     let expected = unindent(expected);
     let expected = expected.strip_prefix('\n').unwrap_or(&expected);
     match (expected.ends_with('\n'), needs_trailing_newline) {
-        (true, false) => expected.strip_suffix('\n').unwrap().to_owned(), // NOT TESTED
-        (false, true) => format!("{}\n", expected),
+        (true, false) => expected.strip_suffix('\n').unwrap().to_owned(),
+        (false, true) => format!("{expected}\n"), // NOT TESTED
         _ => expected.to_owned(),
     }
 }
